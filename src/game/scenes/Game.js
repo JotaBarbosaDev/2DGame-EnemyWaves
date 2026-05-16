@@ -13,7 +13,12 @@ import {
     getEnemyFrameKey
 } from '../data/enemyAnimations';
 import { getEnemyTypeConfig } from '../data/enemyTypes';
-import { PLAYER_ANIMATIONS } from '../data/playerAnimations';
+import { PLAYER_CHARACTERS, getPlayerCharacterForWave } from '../data/playerCharacters';
+import {
+    PLAYER_ANIMATIONS,
+    getPlayerAnimationKey,
+    getPlayerFrameKey
+} from '../data/playerAnimations';
 import { WALK_GRID } from '../data/walkGrid';
 
 const TILE_WIDTH = 256;
@@ -23,7 +28,6 @@ const PIECE_ROWS = 8;
 const GRID_ORIGIN_X = 100;
 const GRID_ORIGIN_Y = 140;
 const FLOOR_VISIBLE_TOP_OFFSET = 334;
-const PLAYER_SPEED = 240;
 const MAP_BACKGROUND_COLOR = 0xd0ab83;
 const COLUMN_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const WALK_SUBCOLUMNS_PER_CELL = 4;
@@ -42,21 +46,15 @@ const PLAYER_HITBOX_WIDTH = 42;
 const PLAYER_HITBOX_HEIGHT = 24;
 const PLAYER_FOOT_Y_OFFSET = 6;
 const PLAYER_SHADOW_OFFSET_Y = 10;
-const PLAYER_MAX_HEALTH = 5;
-const PLAYER_ATTACK_COOLDOWN = 420;
-const PLAYER_CAST_COOLDOWN = 900;
 const PLAYER_INVULNERABILITY_MS = 900;
 const PLAYER_IDLE_BLINK_MIN_DELAY = 2400;
 const PLAYER_IDLE_BLINK_MAX_DELAY = 4400;
 const PLAYER_ATTACK_EFFECT_DISTANCE = 44;
-const PLAYER_PROJECTILE_SPEED = 360;
 const PLAYER_PROJECTILE_LIFETIME = 1000;
 const PLAYER_PROJECTILE_OFFSET_X = 28;
 const PLAYER_PROJECTILE_OFFSET_Y = 46;
 const PLAYER_DEPTH_BEHIND_OFFSET = 180;
 const PLAYER_DEPTH_FRONT_OFFSET = 2;
-const PLAYER_ATTACK_DAMAGE = 1;
-const PLAYER_PROJECTILE_DAMAGE = 2;
 const PLAYER_AIM_MIN_DISTANCE = 12;
 const PLAYER_HEALTH_BAR_WIDTH = 240;
 const PLAYER_HEALTH_BAR_HEIGHT = 20;
@@ -88,10 +86,6 @@ const WAVE_CONCURRENT_BASE = 3;
 const WAVE_CONCURRENT_MAX = 8;
 
 const PLAYER_ACTION_STATES = new Set(['attack', 'cast', 'hurt', 'taunt', 'dead']);
-const PLAYER_STATE_TO_ANIMATION = Object.freeze(
-    Object.fromEntries(PLAYER_ANIMATIONS.map((animation) => [animation.state, animation.key]))
-);
-
 const PLAY_AREA = {
     x: WALK_ORIGIN_X,
     y: WALK_ORIGIN_Y,
@@ -340,6 +334,7 @@ export class Game extends Scene
     createPlayer ()
     {
         this.createPlayerAnimations();
+        const character = getPlayerCharacterForWave(1);
 
         this.keys = this.input.keyboard.addKeys({
             up: 'W',
@@ -370,19 +365,20 @@ export class Game extends Scene
         this.playerHitbox.body.setCollideWorldBounds(true);
 
         this.playerShadow = this.add.ellipse(footX, footY + PLAYER_SHADOW_OFFSET_Y, 58, 22, 0x000000, 0.18);
-        this.playerSprite = this.add.sprite(footX, footY, 'player-idle-0')
+        this.playerSprite = this.add.sprite(footX, footY, getPlayerFrameKey(character.assetId, 'idle', 0))
             .setOrigin(0.5, 1)
             .setScale(PLAYER_VISUAL_SCALE);
 
         this.player = {
             actionToken: 0,
             aim: { x: 1, y: 0 },
+            character,
             facing: 1,
             gameOverQueued: false,
-            health: PLAYER_MAX_HEALTH,
+            health: character.maxHealth,
             idleBlinkAt: this.time.now + this.randomIdleBlinkDelay(),
             invulnerableUntil: 0,
-            maxHealth: PLAYER_MAX_HEALTH,
+            maxHealth: character.maxHealth,
             nextAttackAt: 0,
             nextCastAt: 0,
             state: 'idle'
@@ -395,19 +391,24 @@ export class Game extends Scene
 
     createPlayerAnimations ()
     {
-        for (const animation of PLAYER_ANIMATIONS)
+        for (const character of PLAYER_CHARACTERS)
         {
-            if (this.anims.exists(animation.key))
+            for (const animation of PLAYER_ANIMATIONS)
             {
-                continue;
-            }
+                const animationKey = getPlayerAnimationKey(character.assetId, animation.state);
 
-            this.anims.create({
-                key: animation.key,
-                frames: this.buildFrameList(animation.key, animation.frames),
-                frameRate: animation.frameRate,
-                repeat: animation.repeat
-            });
+                if (this.anims.exists(animationKey))
+                {
+                    continue;
+                }
+
+                this.anims.create({
+                    key: animationKey,
+                    frames: this.buildPlayerFrameList(character.assetId, animation.state, animation.frames),
+                    frameRate: animation.frameRate,
+                    repeat: animation.repeat
+                });
+            }
         }
     }
 
@@ -564,9 +565,9 @@ export class Game extends Scene
         return this.playerBehindCellKeys.has(this.cellKey(pieceCell.column, pieceCell.row));
     }
 
-    buildFrameList (prefix, frameCount)
+    buildPlayerFrameList (assetId, state, frameCount)
     {
-        return Array.from({ length: frameCount }, (_, index) => ({ key: `${prefix}-${index}` }));
+        return Array.from({ length: frameCount }, (_, index) => ({ key: getPlayerFrameKey(assetId, state, index) }));
     }
 
     buildEnemyFrameList (variant, state, frameCount)
@@ -690,10 +691,11 @@ export class Game extends Scene
         );
 
         this.playerStatusText.setText(
-            `Estado: ${this.player.state} | HP: ${this.player.health}/${this.player.maxHealth} | Atk: ${attackCooldown} | Cast: ${castCooldown}`
+            `Forma: ${this.player.character.label} | Estado: ${this.player.state} | HP: ${this.player.health}/${this.player.maxHealth} | Atk: ${attackCooldown} | Cast: ${castCooldown}`
         );
 
         this.playerHealthBarFill.width = Math.max(0, PLAYER_HEALTH_BAR_WIDTH * healthRatio);
+        this.playerHealthBarLabel.setText(`${this.player.character.label} HP`);
     }
 
     updatePlayerAim ()
@@ -1032,6 +1034,7 @@ export class Game extends Scene
 
     startWave (waveNumber, now)
     {
+        const evolutionLabel = this.maybeEvolvePlayerForWave(waveNumber);
         this.wave.active = true;
         this.wave.clearedAt = 0;
         this.wave.current = waveNumber;
@@ -1040,7 +1043,7 @@ export class Game extends Scene
         this.wave.upcomingAt = now;
         this.nextEnemySpawnAt = now + 360;
 
-        this.showWaveBanner(`Wave ${waveNumber}`);
+        this.showWaveBanner(evolutionLabel ? `Wave ${waveNumber} | ${evolutionLabel}` : `Wave ${waveNumber}`);
     }
 
     completeWave (now)
@@ -1078,6 +1081,26 @@ export class Game extends Scene
             scaleX: 1.08,
             scaleY: 1.08
         });
+    }
+
+    maybeEvolvePlayerForWave (waveNumber)
+    {
+        const nextCharacter = getPlayerCharacterForWave(waveNumber);
+
+        if (nextCharacter.assetId === this.player.character.assetId)
+        {
+            return null;
+        }
+
+        this.player.character = nextCharacter;
+        this.player.maxHealth = nextCharacter.maxHealth;
+        this.player.health = nextCharacter.maxHealth;
+        this.player.invulnerableUntil = this.time.now + 400;
+        this.playerSprite.setTexture(getPlayerFrameKey(nextCharacter.assetId, 'idle', 0));
+        this.playPlayerAnimationForState(this.player.state === 'dead' ? 'dead' : 'idle');
+
+        this.cameras.main.flash(220, 225, 255, 225, false);
+        return `${nextCharacter.label} desbloqueado`;
     }
 
     getWaveEnemyTotal (waveNumber)
@@ -1282,8 +1305,8 @@ export class Game extends Scene
             const length = Math.hypot(moveX, moveY);
 
             this.playerHitbox.body.setVelocity(
-                (moveX / length) * PLAYER_SPEED,
-                (moveY / length) * PLAYER_SPEED
+                (moveX / length) * this.player.character.speed,
+                (moveY / length) * this.player.character.speed
             );
 
             this.player.idleBlinkAt = now + this.randomIdleBlinkDelay();
@@ -1324,7 +1347,7 @@ export class Game extends Scene
 
             if (hitEnemy)
             {
-                this.applyDamageToEnemy(hitEnemy, PLAYER_PROJECTILE_DAMAGE);
+                this.applyDamageToEnemy(hitEnemy, projectile.damage);
                 projectile.destroy();
                 this.playerProjectiles.splice(index, 1);
                 continue;
@@ -1371,7 +1394,7 @@ export class Game extends Scene
 
         if (state === 'attack')
         {
-            this.player.nextAttackAt = now + PLAYER_ATTACK_COOLDOWN;
+            this.player.nextAttackAt = now + this.player.character.attackCooldown;
             this.time.delayedCall(160, () => {
 
                 if (this.isPlayerActionTokenActive(token, 'attack'))
@@ -1386,7 +1409,7 @@ export class Game extends Scene
 
         if (state === 'cast')
         {
-            this.player.nextCastAt = now + PLAYER_CAST_COOLDOWN;
+            this.player.nextCastAt = now + this.player.character.castCooldown;
             this.spawnCastChargeEffect();
 
             this.time.delayedCall(320, () => {
@@ -1425,12 +1448,7 @@ export class Game extends Scene
 
     playPlayerAnimationForState (state)
     {
-        const animationKey = PLAYER_STATE_TO_ANIMATION[state];
-
-        if (!animationKey)
-        {
-            return;
-        }
+        const animationKey = getPlayerAnimationKey(this.player.character.assetId, state);
 
         if (this.playerSprite.anims.currentAnim?.key === animationKey)
         {
@@ -1442,28 +1460,33 @@ export class Game extends Scene
 
     handlePlayerAnimationComplete (animation)
     {
-        if (animation.key === PLAYER_STATE_TO_ANIMATION.dead)
+        if (this.isCurrentPlayerAnimation(animation, 'dead'))
         {
             this.goToGameOver();
             return;
         }
 
-        if (animation.key === PLAYER_STATE_TO_ANIMATION['idle-blink'])
+        if (this.isCurrentPlayerAnimation(animation, 'idle-blink'))
         {
             this.setPlayerState('idle');
             return;
         }
 
         if (
-            animation.key === PLAYER_STATE_TO_ANIMATION.attack ||
-            animation.key === PLAYER_STATE_TO_ANIMATION.cast ||
-            animation.key === PLAYER_STATE_TO_ANIMATION.hurt ||
-            animation.key === PLAYER_STATE_TO_ANIMATION.taunt
+            this.isCurrentPlayerAnimation(animation, 'attack') ||
+            this.isCurrentPlayerAnimation(animation, 'cast') ||
+            this.isCurrentPlayerAnimation(animation, 'hurt') ||
+            this.isCurrentPlayerAnimation(animation, 'taunt')
         )
         {
             this.setPlayerState('idle');
             this.player.idleBlinkAt = this.time.now + this.randomIdleBlinkDelay();
         }
+    }
+
+    isCurrentPlayerAnimation (animation, state)
+    {
+        return animation.key === getPlayerAnimationKey(this.player.character.assetId, state);
     }
 
     applyPlayerDamage (damage)
@@ -1509,6 +1532,7 @@ export class Game extends Scene
         this.time.delayedCall(120, () => {
 
             this.scene.start('GameOver', {
+                character: this.player.character.label,
                 score: this.score,
                 wave: this.wave.current
             });
@@ -1557,7 +1581,7 @@ export class Game extends Scene
             .setDepth(this.playerSprite.depth + 1)
             .setRotation(Math.atan2(aim.y, aim.x));
 
-        this.applyDamageToEnemiesInRadius(attackX, attackY, 48, PLAYER_ATTACK_DAMAGE);
+        this.applyDamageToEnemiesInRadius(attackX, attackY, 48, this.player.character.attackDamage);
 
         this.tweens.add({
             targets: slash,
@@ -1576,7 +1600,7 @@ export class Game extends Scene
     spawnCastChargeEffect ()
     {
         const feet = this.getPlayerFeetPosition();
-        const ring = this.add.circle(feet.x, feet.y - 34, 16, 0x93f7ff, 0.25)
+        const ring = this.add.circle(feet.x, feet.y - 34, 16, this.player.character.castTint, 0.25)
             .setDepth(this.playerSprite.depth + 1)
             .setScale(0.35);
 
@@ -1602,13 +1626,14 @@ export class Game extends Scene
             feet.x + (aim.x * PLAYER_PROJECTILE_OFFSET_X),
             feet.y - PLAYER_PROJECTILE_OFFSET_Y + (aim.y * 18),
             10,
-            0x9bf6ff,
+            this.player.character.castTint,
             0.95
         );
 
         this.physics.add.existing(projectile);
         projectile.body.setAllowGravity(false);
-        projectile.body.setVelocity(aim.x * PLAYER_PROJECTILE_SPEED, aim.y * PLAYER_PROJECTILE_SPEED);
+        projectile.body.setVelocity(aim.x * this.player.character.projectileSpeed, aim.y * this.player.character.projectileSpeed);
+        projectile.damage = this.player.character.castDamage;
         projectile.expireAt = this.time.now + PLAYER_PROJECTILE_LIFETIME;
         projectile.setDepth(projectile.y + 6);
 

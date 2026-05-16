@@ -1,74 +1,96 @@
 export const PLAYER_ANIMATIONS = [
     {
-        state: 'idle',
-        key: 'player-idle',
+        fileStem: 'Idle',
         folder: 'Idle',
-        filePrefix: 'Wraith_01_Idle_',
         frames: 12,
         frameRate: 8,
-        repeat: -1
+        repeat: -1,
+        state: 'idle'
     },
     {
-        state: 'idle-blink',
-        key: 'player-idle-blink',
+        fileStem: 'Idle Blinking',
         folder: 'Idle Blink',
-        filePrefix: 'Wraith_01_Idle Blinking_',
         frames: 12,
         frameRate: 12,
-        repeat: 0
+        repeat: 0,
+        state: 'idle-blink'
     },
     {
-        state: 'walk',
-        key: 'player-walk',
+        fileStem: 'Moving Forward',
         folder: 'Walking',
-        filePrefix: 'Wraith_01_Moving Forward_',
         frames: 12,
         frameRate: 14,
-        repeat: -1
+        repeat: -1,
+        state: 'walk'
     },
     {
-        state: 'attack',
-        key: 'player-attack',
+        fileStem: 'Attack',
         folder: 'Attacking',
-        filePrefix: 'Wraith_01_Attack_',
         frames: 12,
         frameRate: 18,
-        repeat: 0
+        repeat: 0,
+        state: 'attack'
     },
     {
-        state: 'cast',
-        key: 'player-cast',
+        fileStem: 'Casting Spells',
         folder: 'Casting Spells',
-        filePrefix: 'Wraith_01_Casting Spells_',
         frames: 18,
         frameRate: 18,
-        repeat: 0
+        repeat: 0,
+        state: 'cast'
     },
     {
-        state: 'hurt',
-        key: 'player-hurt',
+        fileStem: 'Hurt',
         folder: 'Hurt',
-        filePrefix: 'Wraith_01_Hurt_',
         frames: 12,
         frameRate: 18,
-        repeat: 0
+        repeat: 0,
+        state: 'hurt'
     },
     {
-        state: 'dead',
-        key: 'player-die',
+        fileStem: 'Dying',
         folder: 'Dying',
-        filePrefix: 'Wraith_01_Dying_',
         frames: 15,
         frameRate: 14,
-        repeat: 0
+        repeat: 0,
+        state: 'dead'
     },
     {
-        state: 'taunt',
-        key: 'player-taunt',
+        fileStem: 'Taunt',
         folder: 'Taunt',
-        filePrefix: 'Wraith_01_Taunt_',
         frames: 18,
         frameRate: 14,
-        repeat: 0
+        repeat: 0,
+        state: 'taunt'
     }
 ];
+
+export function getPlayerAnimationConfig (state)
+{
+    const animation = PLAYER_ANIMATIONS.find((entry) => entry.state === state);
+
+    if (!animation)
+    {
+        throw new Error(`Animacao de player desconhecida: ${state}`);
+    }
+
+    return animation;
+}
+
+export function getPlayerAnimationKey (assetId, state)
+{
+    return `player-${assetId.toLowerCase()}-${state}`;
+}
+
+export function getPlayerFrameKey (assetId, state, frame)
+{
+    return `${getPlayerAnimationKey(assetId, state)}-${frame}`;
+}
+
+export function getPlayerFramePath (assetId, state, frame)
+{
+    const animation = getPlayerAnimationConfig(state);
+    const suffix = frame.toString().padStart(3, '0');
+
+    return `player1/PNG/${assetId}/PNG Sequences/${animation.folder}/${assetId}_${animation.fileStem}_${suffix}.png`;
+}

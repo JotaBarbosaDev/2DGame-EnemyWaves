@@ -6,7 +6,12 @@ import {
 } from '../data/enemyAnimations';
 import { Scene } from 'phaser';
 import { MAP_ASSETS } from '../data/mapAssets';
-import { PLAYER_ANIMATIONS } from '../data/playerAnimations';
+import { PLAYER_CHARACTERS } from '../data/playerCharacters';
+import {
+    PLAYER_ANIMATIONS,
+    getPlayerFrameKey,
+    getPlayerFramePath
+} from '../data/playerAnimations';
 
 export class Preloader extends Scene
 {
@@ -44,16 +49,17 @@ export class Preloader extends Scene
             this.load.image(key, path);
         }
 
-        for (const animation of PLAYER_ANIMATIONS)
+        for (const character of PLAYER_CHARACTERS)
         {
-            for (let frame = 0; frame < animation.frames; frame++)
+            for (const animation of PLAYER_ANIMATIONS)
             {
-                const suffix = frame.toString().padStart(3, '0');
-
-                this.load.image(
-                    `${animation.key}-${frame}`,
-                    `player1/PNG/Wraith_01/PNG Sequences/${animation.folder}/${animation.filePrefix}${suffix}.png`
-                );
+                for (let frame = 0; frame < animation.frames; frame++)
+                {
+                    this.load.image(
+                        getPlayerFrameKey(character.assetId, animation.state, frame),
+                        getPlayerFramePath(character.assetId, animation.state, frame)
+                    );
+                }
             }
         }
 
