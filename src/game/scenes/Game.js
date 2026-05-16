@@ -1714,13 +1714,16 @@ export class Game extends Scene
     doesProjectilePathHitEnemy (projectile, enemy, previousX, previousY)
     {
         const feet = this.getEnemyFeetPosition(enemy);
-        const torsoHeight = Math.max(26, enemy.sprite.displayHeight * 0.42);
-        const torsoRadius = Math.max(26, enemy.sprite.displayWidth * 0.34) + projectile.radius;
-        const torsoCenterY = feet.y - torsoHeight;
+        const bodyTopY = feet.y - Math.max(54, enemy.sprite.displayHeight * 0.82);
+        const bodyBottomY = feet.y - Math.max(10, enemy.sprite.displayHeight * 0.1);
+        const bodyRadius = Math.max(18, enemy.sprite.displayWidth * 0.3) + projectile.radius;
+        const headCenterY = feet.y - Math.max(46, enemy.sprite.displayHeight * 0.8);
+        const headRadius = Math.max(18, enemy.sprite.displayWidth * 0.24) + projectile.radius;
         const feetRadius = Math.max(18, (ENEMY_HITBOX_WIDTH / 2) + projectile.radius);
 
         return (
-            this.distancePointToSegment(feet.x, torsoCenterY, previousX, previousY, projectile.x, projectile.y) <= torsoRadius ||
+            this.distanceSegmentToSegment(feet.x, bodyTopY, feet.x, bodyBottomY, previousX, previousY, projectile.x, projectile.y) <= bodyRadius ||
+            this.distancePointToSegment(feet.x, headCenterY, previousX, previousY, projectile.x, projectile.y) <= headRadius ||
             this.distancePointToSegment(feet.x, feet.y - 10, previousX, previousY, projectile.x, projectile.y) <= feetRadius
         );
     }
@@ -1742,6 +1745,63 @@ export class Game extends Scene
         const closestY = startY + (deltaY * clampedProjection);
 
         return Math.hypot(pointX - closestX, pointY - closestY);
+    }
+
+    distanceSegmentToSegment (startAX, startAY, endAX, endAY, startBX, startBY, endBX, endBY)
+    {
+        if (this.doSegmentsIntersect(startAX, startAY, endAX, endAY, startBX, startBY, endBX, endBY))
+        {
+            return 0;
+        }
+
+        return Math.min(
+            this.distancePointToSegment(startAX, startAY, startBX, startBY, endBX, endBY),
+            this.distancePointToSegment(endAX, endAY, startBX, startBY, endBX, endBY),
+            this.distancePointToSegment(startBX, startBY, startAX, startAY, endAX, endAY),
+            this.distancePointToSegment(endBX, endBY, startAX, startAY, endAX, endAY)
+        );
+    }
+
+    doSegmentsIntersect (startAX, startAY, endAX, endAY, startBX, startBY, endBX, endBY)
+    {
+        const orientation1 = this.segmentOrientation(startAX, startAY, endAX, endAY, startBX, startBY);
+        const orientation2 = this.segmentOrientation(startAX, startAY, endAX, endAY, endBX, endBY);
+        const orientation3 = this.segmentOrientation(startBX, startBY, endBX, endBY, startAX, startAY);
+        const orientation4 = this.segmentOrientation(startBX, startBY, endBX, endBY, endAX, endAY);
+
+        if (orientation1 !== orientation2 && orientation3 !== orientation4)
+        {
+            return true;
+        }
+
+        return (
+            (orientation1 === 0 && this.isPointOnSegment(startAX, startAY, startBX, startBY, endAX, endAY)) ||
+            (orientation2 === 0 && this.isPointOnSegment(startAX, startAY, endBX, endBY, endAX, endAY)) ||
+            (orientation3 === 0 && this.isPointOnSegment(startBX, startBY, startAX, startAY, endBX, endBY)) ||
+            (orientation4 === 0 && this.isPointOnSegment(startBX, startBY, endAX, endAY, endBX, endBY))
+        );
+    }
+
+    segmentOrientation (startX, startY, endX, endY, pointX, pointY)
+    {
+        const value = ((endY - startY) * (pointX - endX)) - ((endX - startX) * (pointY - endY));
+
+        if (Math.abs(value) < 0.0001)
+        {
+            return 0;
+        }
+
+        return value > 0 ? 1 : 2;
+    }
+
+    isPointOnSegment (startX, startY, pointX, pointY, endX, endY)
+    {
+        return (
+            pointX <= Math.max(startX, endX) &&
+            pointX >= Math.min(startX, endX) &&
+            pointY <= Math.max(startY, endY) &&
+            pointY >= Math.min(startY, endY)
+        );
     }
 
     applyDamageToEnemiesInRadius (centerX, centerY, radius, damage)
