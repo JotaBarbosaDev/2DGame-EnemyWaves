@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { MAP_ASSETS } from '../data/mapAssets';
 
 export class Preloader extends Scene
 {
@@ -24,7 +25,13 @@ export class Preloader extends Scene
     preload ()
     {
         this.load.setPath('assets');
+
         this.load.image('logo', 'logo.png');
+
+        for (const [key, assetPath] of MAP_ASSETS)
+        {
+            this.load.image(key, assetPath);
+        }
     }
 
     create ()
