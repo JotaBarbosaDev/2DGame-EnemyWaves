@@ -13,12 +13,21 @@ import {
     getEnemyFrameKey
 } from '../data/enemyAnimations';
 import { getEnemyTypeConfig } from '../data/enemyTypes';
-import { PLAYER_CHARACTERS, getPlayerCharacterForWave } from '../data/playerCharacters';
+import {
+    PLAYER_CHARACTERS,
+    getNextPlayerCharacter
+} from '../data/playerCharacters';
 import {
     PLAYER_ANIMATIONS,
     getPlayerAnimationKey,
     getPlayerFrameKey
 } from '../data/playerAnimations';
+import {
+    PLAYER_TOTAL_UPGRADE_POINTS,
+    PLAYER_UPGRADES,
+    buildInitialUpgradeState,
+    getPlayerUpgradeById
+} from '../data/playerUpgrades';
 import { DEFAULT_GAME_SETTINGS } from '../data/settings';
 import { WALK_GRID } from '../data/walkGrid';
 
@@ -60,6 +69,7 @@ const PLAYER_AIM_MIN_DISTANCE = 12;
 const PLAYER_HEALTH_BAR_WIDTH = 240;
 const PLAYER_HEALTH_BAR_HEIGHT = 20;
 const PLAYER_SCORE_PER_WAVE_CLEAR = 120;
+const PLAYER_BASE_PICKUP_RADIUS = 58;
 
 const ENEMY_VISUAL_SCALE = 0.28;
 const ENEMY_HITBOX_WIDTH = 34;
@@ -84,6 +94,10 @@ const WAVE_BASE_ENEMY_COUNT = 4;
 const WAVE_ENEMY_GROWTH = 2;
 const WAVE_CONCURRENT_BASE = 3;
 const WAVE_CONCURRENT_MAX = 8;
+const ESSENCE_DROP_BASE_CHANCE = 0.34;
+const ESSENCE_DROP_WAVE_BONUS = 0.015;
+const ESSENCE_DROP_MAGNET_SPEED = 420;
+const ESSENCE_DROP_PICKUP_DISTANCE = 22;
 
 const PLAYER_ACTION_STATES = new Set(['attack', 'cast', 'hurt', 'taunt', 'dead']);
 const PLAY_AREA = {
@@ -128,6 +142,7 @@ export class Game extends Scene
         }
         this.createPlayer();
         this.createEnemySystems();
+        this.createProgressionSystems();
         this.enableZoneCollisions();
         this.createHud();
 
@@ -146,9 +161,24 @@ export class Game extends Scene
         const now = this.time.now;
 
         this.updatePlayerAim();
+        this.handleProgressionInputs();
+
+        if (this.progression.menuOpen)
+        {
+            this.syncPlayerVisual();
+            if (this.devMode)
+            {
+                this.updateGridCursor();
+            }
+            this.updateHud(now);
+            this.refreshEvolutionPanel();
+            return;
+        }
+
         this.handlePlayerActionInputs(now);
         this.updatePlayerMovement(now);
         this.updatePlayerProjectiles(now);
+        this.updateEssenceDrops();
         this.updateEnemySpawning(now);
         this.updateEnemies(now);
         this.syncPlayerVisual();
@@ -157,6 +187,7 @@ export class Game extends Scene
             this.updateGridCursor();
         }
         this.updateHud(now);
+        this.refreshEvolutionPanel();
     }
 
     createMap ()
@@ -342,7 +373,7 @@ export class Game extends Scene
     createPlayer ()
     {
         this.createPlayerAnimations();
-        const character = getPlayerCharacterForWave(1);
+        const character = PLAYER_CHARACTERS[0];
 
         this.keys = this.input.keyboard.addKeys({
             up: 'W',
@@ -356,7 +387,15 @@ export class Game extends Scene
             taunt: 'T',
             hurt: 'H',
             die: 'L',
-            restart: 'R'
+            restart: 'R',
+            buildMenu: 'U',
+            buildClose: 'ESC',
+            evolve: 'N',
+            upgrade1: 'ONE',
+            upgrade2: 'TWO',
+            upgrade3: 'THREE',
+            upgrade4: 'FOUR',
+            upgrade5: 'FIVE'
         });
         this.pointerQueuedAttack = false;
         this.pointerQueuedCast = false;
@@ -406,7 +445,8 @@ export class Game extends Scene
             maxHealth: character.maxHealth,
             nextAttackAt: 0,
             nextCastAt: 0,
-            state: 'idle'
+            state: 'idle',
+            stats: null
         };
 
         this.playerSprite.on('animationcomplete', this.handlePlayerAnimationComplete, this);
@@ -454,6 +494,19 @@ export class Game extends Scene
         this.nextEnemySpawnAt = this.time.now + ENEMY_SPAWN_DELAY;
     }
 
+    createProgressionSystems ()
+    {
+        this.essenceDrops = [];
+        this.progression = {
+            essence: 0,
+            menuOpen: false,
+            totalSpent: 0,
+            upgrades: buildInitialUpgradeState()
+        };
+
+        this.recalculatePlayerStats({ fullHeal: true });
+    }
+
     createEnemyAnimations ()
     {
         for (const variant of ENEMY_VARIANTS)
@@ -484,9 +537,9 @@ export class Game extends Scene
         const leftPanelWidth = 344;
         const leftPanelHeight = 126;
         const rightPanelWidth = 280;
-        const rightPanelHeight = 126;
+        const rightPanelHeight = 154;
         const rightPanelX = this.scale.width - rightPanelWidth - 18;
-        const bottomHintWidth = 520;
+        const bottomHintWidth = 620;
         const bottomHintHeight = 38;
         const bottomHintX = (this.scale.width - bottomHintWidth) / 2;
         const bottomHintY = this.scale.height - bottomHintHeight - 18;
@@ -559,7 +612,7 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.enemyStatusText = this.add.text(rightPanelX + 16, topPanelY + 78, '', {
+        this.enemyStatusText = this.add.text(rightPanelX + 16, topPanelY + 80, '', {
             fontFamily: 'Courier New',
             fontSize: 17,
             color: '#dbeafe',
@@ -569,9 +622,19 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.controlHintText = this.add.text(this.scale.width / 2, bottomHintY + (bottomHintHeight / 2), 'WASD mover  |  Space/J/K/LMB atacar  |  E/RMB cast', {
+        this.progressionStatusText = this.add.text(rightPanelX + 16, topPanelY + 112, '', {
             fontFamily: 'Courier New',
-            fontSize: 16,
+            fontSize: 17,
+            color: '#dbeafe',
+            stroke: '#14243a',
+            strokeThickness: 4
+        })
+            .setScrollFactor(0)
+            .setDepth(5000);
+
+        this.controlHintText = this.add.text(this.scale.width / 2, bottomHintY + (bottomHintHeight / 2), 'WASD mover  |  Space/J/K/LMB atacar  |  E/RMB cast  |  U build', {
+            fontFamily: 'Courier New',
+            fontSize: 15,
             color: '#e5eefb',
             stroke: '#0f1720',
             strokeThickness: 4
@@ -645,6 +708,511 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5003)
             .setAlpha(0);
+
+        this.createEvolutionPanel();
+    }
+
+    createEvolutionPanel ()
+    {
+        this.evolutionOverlay = this.add.rectangle(0, 0, this.scale.width, this.scale.height, 0x04070b, 0.72)
+            .setOrigin(0)
+            .setScrollFactor(0)
+            .setDepth(6900)
+            .setVisible(false);
+
+        this.evolutionPanel = this.add.rectangle(this.scale.width / 2, this.scale.height / 2, 760, 520, 0x121820, 0.96)
+            .setStrokeStyle(3, 0xd1e6ff, 0.3)
+            .setScrollFactor(0)
+            .setDepth(6901)
+            .setVisible(false);
+
+        this.evolutionTitleText = this.add.text(512, 166, '', {
+            fontFamily: 'Arial Black',
+            fontSize: 32,
+            color: '#fff7ed',
+            stroke: '#0f1720',
+            strokeThickness: 6
+        })
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(6902)
+            .setVisible(false);
+
+        this.evolutionSummaryText = this.add.text(180, 210, '', {
+            fontFamily: 'Courier New',
+            fontSize: 18,
+            color: '#dbeafe',
+            stroke: '#0f1720',
+            strokeThickness: 4
+        })
+            .setScrollFactor(0)
+            .setDepth(6902)
+            .setVisible(false);
+
+        this.evolutionUpgradeTexts = PLAYER_UPGRADES.map((upgrade, index) => this.add.text(180, 258 + (index * 42), '', {
+            fontFamily: 'Courier New',
+            fontSize: 18,
+            color: '#f8fafc',
+            stroke: '#0f1720',
+            strokeThickness: 4
+        })
+            .setScrollFactor(0)
+            .setDepth(6902)
+            .setVisible(false));
+
+        this.evolutionTraitsTitleText = this.add.text(180, 486, 'Passivas atuais', {
+            fontFamily: 'Arial Black',
+            fontSize: 20,
+            color: '#fef3c7',
+            stroke: '#0f1720',
+            strokeThickness: 5
+        })
+            .setScrollFactor(0)
+            .setDepth(6902)
+            .setVisible(false);
+
+        this.evolutionTraitTexts = [
+            this.add.text(180, 522, '', {
+                fontFamily: 'Courier New',
+                fontSize: 17,
+                color: '#fde68a',
+                stroke: '#0f1720',
+                strokeThickness: 4,
+                wordWrap: { width: 650 }
+            }),
+            this.add.text(180, 558, '', {
+                fontFamily: 'Courier New',
+                fontSize: 17,
+                color: '#fde68a',
+                stroke: '#0f1720',
+                strokeThickness: 4,
+                wordWrap: { width: 650 }
+            })
+        ].map((text) => text
+            .setScrollFactor(0)
+            .setDepth(6902)
+            .setVisible(false));
+
+        this.evolutionStatusText = this.add.text(180, 606, '', {
+            fontFamily: 'Arial Black',
+            fontSize: 20,
+            color: '#bbf7d0',
+            stroke: '#0f1720',
+            strokeThickness: 5
+        })
+            .setScrollFactor(0)
+            .setDepth(6902)
+            .setVisible(false);
+
+        this.evolutionHintText = this.add.text(512, 662, 'U fechar  |  1-5 investir  |  N evoluir', {
+            fontFamily: 'Courier New',
+            fontSize: 17,
+            color: '#dbeafe',
+            stroke: '#0f1720',
+            strokeThickness: 4
+        })
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(6902)
+            .setVisible(false);
+    }
+
+    handleProgressionInputs ()
+    {
+        if (!this.progression)
+        {
+            return;
+        }
+
+        if (this.player.state === 'dead')
+        {
+            this.progression.menuOpen = false;
+            return;
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.buildMenu))
+        {
+            this.progression.menuOpen = !this.progression.menuOpen;
+            return;
+        }
+
+        if (!this.progression.menuOpen)
+        {
+            return;
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.buildClose))
+        {
+            this.progression.menuOpen = false;
+            return;
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.upgrade1))
+        {
+            this.spendUpgradePoint('mobility');
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.upgrade2))
+        {
+            this.spendUpgradePoint('assault');
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.upgrade3))
+        {
+            this.spendUpgradePoint('haste');
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.upgrade4))
+        {
+            this.spendUpgradePoint('arcana');
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.upgrade5))
+        {
+            this.spendUpgradePoint('vitality');
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.evolve))
+        {
+            this.evolvePlayer();
+        }
+    }
+
+    updateEssenceDrops ()
+    {
+        const deltaSeconds = this.game.loop.delta / 1000;
+        const pickupRadius = this.getPlayerPickupRadius();
+        const playerFeet = this.getPlayerFeetPosition();
+
+        for (let index = this.essenceDrops.length - 1; index >= 0; index--)
+        {
+            const drop = this.essenceDrops[index];
+
+            if (!drop.orb.active)
+            {
+                this.essenceDrops.splice(index, 1);
+                continue;
+            }
+
+            const deltaX = playerFeet.x - drop.orb.x;
+            const deltaY = playerFeet.y - 24 - drop.orb.y;
+            const distance = Math.hypot(deltaX, deltaY);
+            const pulse = 1 + (Math.sin((this.time.now + drop.phaseOffset) / 180) * 0.08);
+
+            drop.orb.setScale(pulse);
+            drop.glow.setScale(pulse * 1.18);
+            drop.orb.setDepth(drop.orb.y + 24);
+            drop.glow.setDepth(drop.orb.y + 23);
+
+            if (distance <= ESSENCE_DROP_PICKUP_DISTANCE)
+            {
+                this.collectEssenceDrop(drop, index);
+                continue;
+            }
+
+            if (distance <= pickupRadius)
+            {
+                const moveDistance = Math.min(distance, ESSENCE_DROP_MAGNET_SPEED * deltaSeconds);
+                const directionX = deltaX / (distance || 1);
+                const directionY = deltaY / (distance || 1);
+
+                drop.orb.x += directionX * moveDistance;
+                drop.orb.y += directionY * moveDistance;
+                drop.glow.x = drop.orb.x;
+                drop.glow.y = drop.orb.y;
+            }
+        }
+    }
+
+    collectEssenceDrop (drop, index)
+    {
+        this.progression.essence += drop.value;
+
+        const text = this.add.text(drop.orb.x, drop.orb.y - 18, `+${drop.value} essencia`, {
+            fontFamily: 'Arial Black',
+            fontSize: 16,
+            color: '#bbf7d0',
+            stroke: '#052e16',
+            strokeThickness: 4
+        })
+            .setOrigin(0.5)
+            .setDepth(6200);
+
+        this.tweens.add({
+            targets: text,
+            alpha: 0,
+            duration: 500,
+            ease: 'Quad.easeOut',
+            y: text.y - 22,
+            onComplete: () => {
+
+                text.destroy();
+
+            }
+        });
+
+        drop.orb.destroy();
+        drop.glow.destroy();
+        this.essenceDrops.splice(index, 1);
+    }
+
+    trySpawnEssenceDrop (enemy)
+    {
+        const modifiers = this.player.character.modifiers ?? {};
+        const chance = Math.min(0.82, ESSENCE_DROP_BASE_CHANCE + (this.wave.current * ESSENCE_DROP_WAVE_BONUS) + (modifiers.dropChanceBonus ?? 0));
+
+        if (Math.random() > chance)
+        {
+            return;
+        }
+
+        const feet = this.getEnemyFeetPosition(enemy);
+        const value = this.resolveEssenceDropValue();
+        const color = value >= 3 ? 0xfbbf24 : value === 2 ? 0x93c5fd : 0x86efac;
+        const orb = this.add.circle(feet.x + PhaserMath.Between(-12, 12), feet.y - 28, value >= 3 ? 11 : 9, color, 0.95)
+            .setStrokeStyle(2, 0xf8fafc, 0.55);
+        const glow = this.add.circle(orb.x, orb.y, value >= 3 ? 20 : 16, color, 0.18);
+
+        this.essenceDrops.push({
+            glow,
+            orb,
+            phaseOffset: PhaserMath.Between(0, 1000),
+            value
+        });
+    }
+
+    resolveEssenceDropValue ()
+    {
+        const modifiers = this.player.character.modifiers ?? {};
+        let value = 1;
+
+        if (Math.random() <= Math.min(0.28, 0.08 + (this.wave.current * 0.02)))
+        {
+            value += 1;
+        }
+
+        if ((modifiers.extraEssenceChance ?? 0) > 0 && Math.random() <= modifiers.extraEssenceChance)
+        {
+            value += 1;
+        }
+
+        return value;
+    }
+
+    spendUpgradePoint (upgradeId)
+    {
+        if (!this.canSpendUpgradePoint(upgradeId))
+        {
+            return false;
+        }
+
+        const previousRequirement = this.getNextEvolutionRequirement();
+
+        this.progression.essence -= 1;
+        this.progression.upgrades[upgradeId] += 1;
+        this.progression.totalSpent += 1;
+
+        this.recalculatePlayerStats();
+
+        const nextRequirement = this.getNextEvolutionRequirement();
+
+        if (!nextRequirement && this.progression.totalSpent >= PLAYER_TOTAL_UPGRADE_POINTS)
+        {
+            this.showWaveBanner('Build completa');
+        }
+        else if (previousRequirement && this.progression.totalSpent >= previousRequirement)
+        {
+            const nextCharacter = getNextPlayerCharacter(this.player.character.assetId);
+
+            if (nextCharacter)
+            {
+                this.showWaveBanner(`${nextCharacter.label} pronto | N para evoluir`);
+            }
+        }
+
+        return true;
+    }
+
+    canSpendUpgradePoint (upgradeId)
+    {
+        const upgrade = getPlayerUpgradeById(upgradeId);
+
+        if (!upgrade)
+        {
+            return false;
+        }
+
+        return (
+            this.progression.essence > 0 &&
+            this.progression.totalSpent < PLAYER_TOTAL_UPGRADE_POINTS &&
+            this.progression.upgrades[upgradeId] < upgrade.maxLevel
+        );
+    }
+
+    canEvolvePlayer ()
+    {
+        const nextCharacter = getNextPlayerCharacter(this.player.character.assetId);
+
+        return Boolean(nextCharacter && this.progression.totalSpent >= nextCharacter.unlockSpent);
+    }
+
+    evolvePlayer ()
+    {
+        if (!this.canEvolvePlayer())
+        {
+            return false;
+        }
+
+        const nextCharacter = getNextPlayerCharacter(this.player.character.assetId);
+
+        if (!nextCharacter)
+        {
+            return false;
+        }
+
+        this.player.character = nextCharacter;
+        this.player.invulnerableUntil = this.time.now + 600;
+        this.playerSprite.setTexture(getPlayerFrameKey(nextCharacter.assetId, 'idle', 0));
+        this.recalculatePlayerStats({ fullHeal: true });
+        this.playPlayerAnimationForState(this.player.state === 'dead' ? 'dead' : 'idle');
+        this.progression.menuOpen = false;
+
+        this.cameras.main.flash(240, 250, 240, 200, false);
+        this.showWaveBanner(`${nextCharacter.label} ascende`);
+
+        return true;
+    }
+
+    recalculatePlayerStats (options = {})
+    {
+        const previousMaxHealth = this.player.maxHealth ?? this.player.character.maxHealth;
+        const character = this.player.character;
+        const modifiers = character.modifiers ?? {};
+        const upgrades = this.progression.upgrades;
+        const mobility = upgrades.mobility;
+        const assault = upgrades.assault;
+        const haste = upgrades.haste;
+        const arcana = upgrades.arcana;
+        const vitality = upgrades.vitality;
+        const attackCooldownFactor = Math.max(0.45, 1 - (haste * (0.035 + (modifiers.hasteBonusPerLevel ?? 0))));
+        const castCooldownFactor = Math.max(0.46, 1 - (haste * 0.03));
+
+        this.player.stats = {
+            attackCooldown: Math.round(character.attackCooldown * attackCooldownFactor * (modifiers.attackCooldownMultiplier ?? 1)),
+            attackDamage: character.attackDamage + Math.ceil(assault * 0.7) + (modifiers.meleeDamageFlat ?? 0),
+            castCooldown: Math.round(character.castCooldown * castCooldownFactor * (modifiers.castCooldownMultiplier ?? 1)),
+            castDamage: character.castDamage + Math.ceil(arcana * 0.75) + (modifiers.castDamageFlat ?? 0),
+            castTint: character.castTint,
+            maxHealth: character.maxHealth + vitality + (modifiers.maxHealthFlat ?? 0),
+            meleeRadius: 48 + (assault * 2),
+            meleeRange: PLAYER_ATTACK_EFFECT_DISTANCE + (assault * 2) + (modifiers.meleeRangeFlat ?? 0),
+            pickupRadius: PLAYER_BASE_PICKUP_RADIUS + (mobility * 7) + (modifiers.pickupRadiusBonus ?? 0),
+            projectileRadius: 10 + Math.floor(arcana / 3) + (modifiers.projectileRadiusBonus ?? 0),
+            projectileSpeed: Math.round((character.projectileSpeed + (arcana * 18)) * (modifiers.projectileSpeedMultiplier ?? 1)),
+            scoreMultiplier: modifiers.scoreMultiplier ?? 1,
+            speed: Math.round((character.speed + (mobility * 12)) * (modifiers.speedMultiplier ?? 1))
+        };
+
+        this.player.maxHealth = this.player.stats.maxHealth;
+
+        if (options.fullHeal)
+        {
+            this.player.health = this.player.maxHealth;
+            return;
+        }
+
+        if (this.player.maxHealth > previousMaxHealth)
+        {
+            this.player.health = Math.min(this.player.maxHealth, this.player.health + (this.player.maxHealth - previousMaxHealth));
+            return;
+        }
+
+        this.player.health = Math.min(this.player.health, this.player.maxHealth);
+    }
+
+    getPlayerPickupRadius ()
+    {
+        return this.player.stats?.pickupRadius ?? PLAYER_BASE_PICKUP_RADIUS;
+    }
+
+    getNextEvolutionRequirement ()
+    {
+        const nextCharacter = getNextPlayerCharacter(this.player.character.assetId);
+
+        return nextCharacter?.unlockSpent ?? null;
+    }
+
+    refreshEvolutionPanel ()
+    {
+        const visible = Boolean(this.progression?.menuOpen);
+        const nextCharacter = getNextPlayerCharacter(this.player.character.assetId);
+        const nextRequirement = this.getNextEvolutionRequirement();
+        const canEvolve = this.canEvolvePlayer();
+        const spent = this.progression.totalSpent;
+
+        this.evolutionOverlay.setVisible(visible);
+        this.evolutionPanel.setVisible(visible);
+        this.evolutionTitleText.setVisible(visible);
+        this.evolutionSummaryText.setVisible(visible);
+        this.evolutionTraitsTitleText.setVisible(visible);
+        this.evolutionStatusText.setVisible(visible);
+        this.evolutionHintText.setVisible(visible);
+
+        for (const text of this.evolutionUpgradeTexts)
+        {
+            text.setVisible(visible);
+        }
+
+        for (const text of this.evolutionTraitTexts)
+        {
+            text.setVisible(visible);
+        }
+
+        if (!visible)
+        {
+            return;
+        }
+
+        this.evolutionTitleText.setText(`${this.player.character.label} Build`);
+        this.evolutionSummaryText.setText(
+            `Essencia: ${this.progression.essence}  |  Pontos gastos: ${spent}/${PLAYER_TOTAL_UPGRADE_POINTS}\n` +
+            `Evolucao: ${nextCharacter ? `${nextCharacter.label} aos ${nextRequirement} pontos` : 'forma final atingida'}`
+        );
+
+        PLAYER_UPGRADES.forEach((upgrade, index) => {
+
+            const level = this.progression.upgrades[upgrade.id];
+            const affordable = this.canSpendUpgradePoint(upgrade.id);
+            const prefix = affordable ? `[${upgrade.key}]` : ` ${upgrade.key} `;
+            const lineColor = level >= upgrade.maxLevel ? '#94a3b8' : affordable ? '#f8fafc' : '#cbd5e1';
+
+            this.evolutionUpgradeTexts[index]
+                .setColor(lineColor)
+                .setText(`${prefix} ${upgrade.label}  ${level}/${upgrade.maxLevel}  -  ${upgrade.description}`);
+
+        });
+
+        this.evolutionTraitTexts[0].setText(`1. ${this.player.character.traits[0]}`);
+        this.evolutionTraitTexts[1].setText(`2. ${this.player.character.traits[1]}`);
+
+        if (canEvolve && nextCharacter)
+        {
+            this.evolutionStatusText
+                .setColor('#bbf7d0')
+                .setText(`N para evoluir para ${nextCharacter.label}`);
+        }
+        else if (!nextCharacter)
+        {
+            this.evolutionStatusText
+                .setColor('#fde68a')
+                .setText('Build final em curso: fecha os 30 pontos para maximizar a run');
+        }
+        else
+        {
+            this.evolutionStatusText
+                .setColor('#dbeafe')
+                .setText(`Faltam ${Math.max(0, nextRequirement - spent)} pontos gastos para evoluir`);
+        }
     }
 
     syncPlayerVisual ()
@@ -793,13 +1361,16 @@ export class Game extends Scene
         const enemiesRemaining = Math.max(0, this.wave.enemiesToSpawn - this.wave.spawned);
         const enemies = this.getLivingEnemyCount();
         const healthRatio = this.player.health / this.player.maxHealth;
+        const nextRequirement = this.getNextEvolutionRequirement();
+        const evolutionLabel = nextRequirement ? `${Math.min(this.progression.totalSpent, nextRequirement)}/${nextRequirement}` : 'final';
 
         this.playerHeaderText.setText(this.player.character.label);
         this.playerStatusText.setText(`Estado: ${this.formatPlayerStateLabel(this.player.state)}   HP: ${this.player.health}/${this.player.maxHealth}`);
         this.playerCooldownText.setText(`Ataque: ${attackCooldown}   Cast: ${castCooldown}`);
         this.waveStatusText.setText(`Wave ${Math.max(1, this.wave.current)}  |  ${waveStateLabel}`);
-        this.scoreStatusText.setText(`Score: ${this.score}`);
+        this.scoreStatusText.setText(`Score: ${this.score}   |   Essencia: ${this.progression.essence}`);
         this.enemyStatusText.setText(`Vivos: ${enemies}   Por surgir: ${enemiesRemaining}`);
+        this.progressionStatusText.setText(`Build: ${this.progression.totalSpent}/${PLAYER_TOTAL_UPGRADE_POINTS}   |   Evolucao: ${evolutionLabel}`);
 
         this.playerHealthBarFill.width = Math.max(0, PLAYER_HEALTH_BAR_WIDTH * healthRatio);
         this.playerHealthBarLabel.setText(`Vida ${this.player.health}/${this.player.maxHealth}`);
@@ -1141,7 +1712,6 @@ export class Game extends Scene
 
     startWave (waveNumber, now)
     {
-        const evolutionLabel = this.maybeEvolvePlayerForWave(waveNumber);
         this.wave.active = true;
         this.wave.clearedAt = 0;
         this.wave.current = waveNumber;
@@ -1150,7 +1720,7 @@ export class Game extends Scene
         this.wave.upcomingAt = now;
         this.nextEnemySpawnAt = now + 360;
 
-        this.showWaveBanner(evolutionLabel ? `Wave ${waveNumber} | ${evolutionLabel}` : `Wave ${waveNumber}`);
+        this.showWaveBanner(`Wave ${waveNumber}`);
     }
 
     completeWave (now)
@@ -1188,26 +1758,6 @@ export class Game extends Scene
             scaleX: 1.08,
             scaleY: 1.08
         });
-    }
-
-    maybeEvolvePlayerForWave (waveNumber)
-    {
-        const nextCharacter = getPlayerCharacterForWave(waveNumber);
-
-        if (nextCharacter.assetId === this.player.character.assetId)
-        {
-            return null;
-        }
-
-        this.player.character = nextCharacter;
-        this.player.maxHealth = nextCharacter.maxHealth;
-        this.player.health = nextCharacter.maxHealth;
-        this.player.invulnerableUntil = this.time.now + 400;
-        this.playerSprite.setTexture(getPlayerFrameKey(nextCharacter.assetId, 'idle', 0));
-        this.playPlayerAnimationForState(this.player.state === 'dead' ? 'dead' : 'idle');
-
-        this.cameras.main.flash(220, 225, 255, 225, false);
-        return `${nextCharacter.label} desbloqueado`;
     }
 
     getWaveEnemyTotal (waveNumber)
@@ -1422,8 +1972,8 @@ export class Game extends Scene
             const length = Math.hypot(moveX, moveY);
 
             this.playerHitbox.body.setVelocity(
-                (moveX / length) * this.player.character.speed,
-                (moveY / length) * this.player.character.speed
+                (moveX / length) * this.player.stats.speed,
+                (moveY / length) * this.player.stats.speed
             );
 
             this.player.idleBlinkAt = now + this.randomIdleBlinkDelay();
@@ -1515,7 +2065,7 @@ export class Game extends Scene
 
         if (state === 'attack')
         {
-            this.player.nextAttackAt = now + this.player.character.attackCooldown;
+            this.player.nextAttackAt = now + this.player.stats.attackCooldown;
             this.time.delayedCall(160, () => {
 
                 if (this.isPlayerActionTokenActive(token, 'attack'))
@@ -1530,7 +2080,7 @@ export class Game extends Scene
 
         if (state === 'cast')
         {
-            this.player.nextCastAt = now + this.player.character.castCooldown;
+            this.player.nextCastAt = now + this.player.stats.castCooldown;
             this.spawnCastChargeEffect();
 
             this.time.delayedCall(320, () => {
@@ -1654,6 +2204,7 @@ export class Game extends Scene
 
             this.scene.start('GameOver', {
                 character: this.player.character.label,
+                spent: this.progression.totalSpent,
                 score: this.score,
                 wave: this.wave.current
             });
@@ -1689,7 +2240,7 @@ export class Game extends Scene
     {
         const feet = this.getPlayerFeetPosition();
         const aim = this.getPlayerAimVector();
-        const attackX = feet.x + (aim.x * PLAYER_ATTACK_EFFECT_DISTANCE);
+        const attackX = feet.x + (aim.x * this.player.stats.meleeRange);
         const attackY = feet.y - 30 + (aim.y * 26);
         const slash = this.add.rectangle(
             attackX,
@@ -1702,7 +2253,7 @@ export class Game extends Scene
             .setDepth(this.playerSprite.depth + 1)
             .setRotation(Math.atan2(aim.y, aim.x));
 
-        this.applyDamageToEnemiesInRadius(attackX, attackY, 48, this.player.character.attackDamage);
+        this.applyDamageToEnemiesInRadius(attackX, attackY, this.player.stats.meleeRadius, this.player.stats.attackDamage);
 
         this.tweens.add({
             targets: slash,
@@ -1721,7 +2272,7 @@ export class Game extends Scene
     spawnCastChargeEffect ()
     {
         const feet = this.getPlayerFeetPosition();
-        const ring = this.add.circle(feet.x, feet.y - 34, 16, this.player.character.castTint, 0.25)
+        const ring = this.add.circle(feet.x, feet.y - 34, this.player.stats.projectileRadius + 5, this.player.stats.castTint, 0.22)
             .setDepth(this.playerSprite.depth + 1)
             .setScale(0.35);
 
@@ -1746,15 +2297,15 @@ export class Game extends Scene
         const projectile = this.add.circle(
             feet.x + (aim.x * PLAYER_PROJECTILE_OFFSET_X),
             feet.y - PLAYER_PROJECTILE_OFFSET_Y + (aim.y * 18),
-            10,
-            this.player.character.castTint,
+            this.player.stats.projectileRadius,
+            this.player.stats.castTint,
             0.95
         );
 
         this.physics.add.existing(projectile);
         projectile.body.setAllowGravity(false);
-        projectile.body.setVelocity(aim.x * this.player.character.projectileSpeed, aim.y * this.player.character.projectileSpeed);
-        projectile.damage = this.player.character.castDamage;
+        projectile.body.setVelocity(aim.x * this.player.stats.projectileSpeed, aim.y * this.player.stats.projectileSpeed);
+        projectile.damage = this.player.stats.castDamage;
         projectile.expireAt = this.time.now + PLAYER_PROJECTILE_LIFETIME;
         projectile.previousX = projectile.x;
         projectile.previousY = projectile.y;
@@ -1955,6 +2506,7 @@ export class Game extends Scene
             return;
         }
 
+        this.trySpawnEssenceDrop(enemy);
         enemy.health = 0;
         enemy.removeAt = this.time.now + ENEMY_CORPSE_DURATION;
         enemy.hitbox.body.setVelocity(0, 0);
@@ -1962,7 +2514,7 @@ export class Game extends Scene
         enemy.shadow.setAlpha(0.08);
         ++enemy.actionToken;
         this.setEnemyState(enemy, 'dead');
-        this.score += enemy.scoreValue;
+        this.score += Math.round(enemy.scoreValue * (this.player.stats?.scoreMultiplier ?? 1));
     }
 
     flashEnemyDamage (enemy)

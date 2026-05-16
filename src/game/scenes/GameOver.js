@@ -46,11 +46,19 @@ export class GameOver extends Scene
             strokeThickness: 5
         }).setOrigin(0.5);
 
-        const restartButton = this.add.rectangle(512, 442, 280, 70, 0xb45309, 0.96)
+        this.add.text(512, 410, `Build gasta: ${data?.spent ?? 0}/30`, {
+            fontFamily: 'Courier New',
+            fontSize: 20,
+            color: '#fee2e2',
+            stroke: '#3f0b14',
+            strokeThickness: 5
+        }).setOrigin(0.5);
+
+        const restartButton = this.add.rectangle(512, 456, 280, 70, 0xb45309, 0.96)
             .setStrokeStyle(4, 0xffedd5, 1)
             .setInteractive({ useHandCursor: true });
 
-        this.add.text(512, 442, 'Reiniciar', {
+        this.add.text(512, 456, 'Reiniciar', {
             fontFamily: 'Arial Black',
             fontSize: 28,
             color: '#fff7ed',
@@ -58,11 +66,11 @@ export class GameOver extends Scene
             strokeThickness: 6
         }).setOrigin(0.5);
 
-        const homeButton = this.add.rectangle(512, 534, 280, 70, 0x1d4ed8, 0.96)
+        const homeButton = this.add.rectangle(512, 548, 280, 70, 0x1d4ed8, 0.96)
             .setStrokeStyle(4, 0xdbeafe, 1)
             .setInteractive({ useHandCursor: true });
 
-        this.add.text(512, 534, 'Home', {
+        this.add.text(512, 548, 'Home', {
             fontFamily: 'Arial Black',
             fontSize: 28,
             color: '#eff6ff',

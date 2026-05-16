@@ -6,11 +6,21 @@ export const PLAYER_CHARACTERS = [
         castCooldown: 900,
         castDamage: 2,
         castTint: 0x9bf6ff,
-        evolveAtWave: 1,
         label: 'Wraith I',
         maxHealth: 5,
         projectileSpeed: 360,
-        speed: 240
+        speed: 240,
+        traits: [
+            'Soul Scavenger: mais chance de cair essencia e maior raio de recolha.',
+            'Light Veil: mais velocidade base e +1 vida base.'
+        ],
+        unlockSpent: 0,
+        modifiers: {
+            dropChanceBonus: 0.12,
+            maxHealthFlat: 1,
+            pickupRadiusBonus: 28,
+            speedMultiplier: 1.08
+        }
     },
     {
         assetId: 'Wraith_02',
@@ -19,11 +29,21 @@ export const PLAYER_CHARACTERS = [
         castCooldown: 760,
         castDamage: 3,
         castTint: 0xb8f7a1,
-        evolveAtWave: 3,
         label: 'Wraith II',
         maxHealth: 7,
         projectileSpeed: 400,
-        speed: 258
+        speed: 258,
+        traits: [
+            'Rending Claws: melee bate mais forte e com mais alcance.',
+            'Battle Tempo: a cadencia rende mais e o ataque sai mais rapido.'
+        ],
+        unlockSpent: 10,
+        modifiers: {
+            attackCooldownMultiplier: 0.9,
+            hasteBonusPerLevel: 0.006,
+            meleeDamageFlat: 1,
+            meleeRangeFlat: 16
+        }
     },
     {
         assetId: 'Wraith_03',
@@ -32,11 +52,22 @@ export const PLAYER_CHARACTERS = [
         castCooldown: 620,
         castDamage: 4,
         castTint: 0xffd38a,
-        evolveAtWave: 5,
         label: 'Wraith III',
         maxHealth: 9,
         projectileSpeed: 440,
-        speed: 278
+        speed: 278,
+        traits: [
+            'Void Channel: cast mais forte, mais rapido e com projeteis maiores.',
+            'Soul Dominion: a essencia rende mais e o score escala melhor.'
+        ],
+        unlockSpent: 20,
+        modifiers: {
+            castDamageFlat: 1,
+            extraEssenceChance: 0.25,
+            projectileRadiusBonus: 3,
+            projectileSpeedMultiplier: 1.12,
+            scoreMultiplier: 1.1
+        }
     }
 ];
 
@@ -45,16 +76,14 @@ export function getPlayerCharacterByAssetId (assetId)
     return PLAYER_CHARACTERS.find((character) => character.assetId === assetId) ?? PLAYER_CHARACTERS[0];
 }
 
-export function getPlayerCharacterForWave (waveNumber)
+export function getPlayerCharacterIndex (assetId)
 {
-    return PLAYER_CHARACTERS.reduce((selected, character) => {
+    return Math.max(0, PLAYER_CHARACTERS.findIndex((character) => character.assetId === assetId));
+}
 
-        if (character.evolveAtWave <= waveNumber)
-        {
-            return character;
-        }
+export function getNextPlayerCharacter (assetId)
+{
+    const currentIndex = getPlayerCharacterIndex(assetId);
 
-        return selected;
-
-    }, PLAYER_CHARACTERS[0]);
+    return PLAYER_CHARACTERS[currentIndex + 1] ?? null;
 }
