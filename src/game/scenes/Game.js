@@ -56,6 +56,10 @@ const PLAYER_DEPTH_BEHIND_OFFSET = 180;
 const PLAYER_DEPTH_FRONT_OFFSET = 2;
 const PLAYER_ATTACK_DAMAGE = 1;
 const PLAYER_PROJECTILE_DAMAGE = 2;
+const PLAYER_AIM_MIN_DISTANCE = 12;
+const PLAYER_HEALTH_BAR_WIDTH = 240;
+const PLAYER_HEALTH_BAR_HEIGHT = 20;
+const PLAYER_HEALTH_BAR_Y = 26;
 
 const ENEMY_VISUAL_SCALE = 0.28;
 const ENEMY_HITBOX_WIDTH = 34;
@@ -77,6 +81,9 @@ const ENEMY_IDLE_MIN_MS = 180;
 const ENEMY_IDLE_MAX_MS = 480;
 const ENEMY_CORPSE_DURATION = 2200;
 const ENEMY_HIT_INVULNERABILITY_MS = 150;
+const ENEMY_HEALTH_BAR_WIDTH = 42;
+const ENEMY_HEALTH_BAR_HEIGHT = 5;
+const ENEMY_HEALTH_BAR_OFFSET_Y = 74;
 
 const PLAYER_ACTION_STATES = new Set(['attack', 'cast', 'hurt', 'taunt', 'dead']);
 const PLAYER_STATE_TO_ANIMATION = Object.freeze(
@@ -137,6 +144,7 @@ export class Game extends Scene
 
         const now = this.time.now;
 
+        this.updatePlayerAim();
         this.handlePlayerActionInputs(now);
         this.updatePlayerMovement(now);
         this.updatePlayerProjectiles(now);
@@ -337,6 +345,7 @@ export class Game extends Scene
             down: 'S',
             right: 'D',
             attack: 'J',
+            attackAlt: 'SPACE',
             cast: 'K',
             taunt: 'T',
             hurt: 'H',
@@ -365,6 +374,7 @@ export class Game extends Scene
 
         this.player = {
             actionToken: 0,
+            aim: { x: 1, y: 0 },
             facing: 1,
             health: PLAYER_MAX_HEALTH,
             idleBlinkAt: this.time.now + this.randomIdleBlinkDelay(),
@@ -431,7 +441,7 @@ export class Game extends Scene
 
     createHud ()
     {
-        this.add.text(24, 24, 'WASD mover | J atacar | K cast | T taunt | H hurt | L morrer | R restart', {
+        this.add.text(24, 58, 'WASD mover | Space/J atacar | K cast | Mira com o rato | T taunt | H hurt | L morrer | R restart', {
             fontFamily: 'Arial Black',
             fontSize: 18,
             color: '#ffffff',
@@ -441,7 +451,7 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.add.text(24, 56, 'Wraith_01 com depth pelos pes + zonas behind do mapa', {
+        this.add.text(24, 90, 'Wraith_01 com depth pelos pes + zombies spawnam fora da camera', {
             fontFamily: 'Courier New',
             fontSize: 18,
             color: '#fff3d1',
@@ -451,7 +461,7 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.playerStatusText = this.add.text(24, 90, '', {
+        this.playerStatusText = this.add.text(24, 124, '', {
             fontFamily: 'Courier New',
             fontSize: 18,
             color: '#fff3d1',
@@ -461,7 +471,7 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.cellStatusText = this.add.text(24, 124, '', {
+        this.cellStatusText = this.add.text(24, 158, '', {
             fontFamily: 'Courier New',
             fontSize: 18,
             color: '#fff3d1',
@@ -470,6 +480,43 @@ export class Game extends Scene
         })
             .setScrollFactor(0)
             .setDepth(5000);
+
+        const barX = this.scale.width / 2;
+
+        this.playerHealthBarBg = this.add.rectangle(
+            barX,
+            PLAYER_HEALTH_BAR_Y,
+            PLAYER_HEALTH_BAR_WIDTH,
+            PLAYER_HEALTH_BAR_HEIGHT,
+            0x7f1d1d,
+            0.9
+        )
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(5000);
+
+        this.playerHealthBarFill = this.add.rectangle(
+            barX - (PLAYER_HEALTH_BAR_WIDTH / 2),
+            PLAYER_HEALTH_BAR_Y,
+            PLAYER_HEALTH_BAR_WIDTH,
+            PLAYER_HEALTH_BAR_HEIGHT,
+            0x2ecc71,
+            0.95
+        )
+            .setOrigin(0, 0.5)
+            .setScrollFactor(0)
+            .setDepth(5001);
+
+        this.playerHealthBarLabel = this.add.text(barX, PLAYER_HEALTH_BAR_Y, 'PLAYER HP', {
+            fontFamily: 'Arial Black',
+            fontSize: 12,
+            color: '#fff7ed',
+            stroke: '#3f1d0d',
+            strokeThickness: 3
+        })
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(5002);
     }
 
     syncPlayerVisual ()
@@ -611,10 +658,36 @@ export class Game extends Scene
         const castCooldown = this.formatCooldown(this.player.nextCastAt - now);
         const restartHint = this.player.state === 'dead' ? ' | R para reiniciar' : '';
         const enemies = this.getLivingEnemyCount();
+        const healthRatio = this.player.health / this.player.maxHealth;
 
         this.playerStatusText.setText(
             `Estado: ${this.player.state} | HP: ${this.player.health}/${this.player.maxHealth} | Inimigos: ${enemies} | Atk: ${attackCooldown} | Cast: ${castCooldown}${restartHint}`
         );
+
+        this.playerHealthBarFill.width = Math.max(0, PLAYER_HEALTH_BAR_WIDTH * healthRatio);
+    }
+
+    updatePlayerAim ()
+    {
+        const feet = this.getPlayerFeetPosition();
+        const pointer = this.input.activePointer;
+        const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+        const deltaX = worldPoint.x - feet.x;
+        const deltaY = worldPoint.y - (feet.y - 30);
+        const distance = Math.hypot(deltaX, deltaY);
+
+        if (distance < PLAYER_AIM_MIN_DISTANCE)
+        {
+            return;
+        }
+
+        this.player.aim.x = deltaX / distance;
+        this.player.aim.y = deltaY / distance;
+
+        if (Math.abs(this.player.aim.x) > 0.08)
+        {
+            this.player.facing = this.player.aim.x < 0 ? -1 : 1;
+        }
     }
 
     updateEnemySpawning (now)
@@ -751,6 +824,11 @@ export class Game extends Scene
             attackToken: 0,
             facing: feetX >= this.getPlayerFeetPosition().x ? -1 : 1,
             health,
+            healthBarBg: this.add.rectangle(feetX, feetY - ENEMY_HEALTH_BAR_OFFSET_Y, ENEMY_HEALTH_BAR_WIDTH, ENEMY_HEALTH_BAR_HEIGHT, 0x7f1d1d, 0.92)
+                .setVisible(false),
+            healthBarFill: this.add.rectangle(feetX - (ENEMY_HEALTH_BAR_WIDTH / 2), feetY - ENEMY_HEALTH_BAR_OFFSET_Y, ENEMY_HEALTH_BAR_WIDTH, ENEMY_HEALTH_BAR_HEIGHT, 0x2ecc71, 0.98)
+                .setOrigin(0, 0.5)
+                .setVisible(false),
             hitbox: this.add.zone(feetX, feetY - (ENEMY_HITBOX_HEIGHT / 2), ENEMY_HITBOX_WIDTH, ENEMY_HITBOX_HEIGHT),
             id: ++this.enemyIdCounter,
             idleUntil: this.time.now + PhaserMath.Between(ENEMY_IDLE_MIN_MS, ENEMY_IDLE_MAX_MS),
@@ -879,6 +957,8 @@ export class Game extends Scene
         enemy.sprite.setPosition(feet.x, feet.y);
         enemy.sprite.setFlipX(enemy.facing < 0);
         enemy.sprite.setDepth(depth);
+
+        this.updateEnemyHealthBar(enemy, depth);
     }
 
     getEnemyFeetPosition (enemy)
@@ -939,6 +1019,29 @@ export class Game extends Scene
         return this.enemies.filter((enemy) => enemy.state !== 'dead').length;
     }
 
+    updateEnemyHealthBar (enemy, depth)
+    {
+        const visible = enemy.state !== 'dead' && enemy.health < enemy.maxHealth;
+        const ratio = enemy.health / enemy.maxHealth;
+        const feet = this.getEnemyFeetPosition(enemy);
+        const barY = feet.y - ENEMY_HEALTH_BAR_OFFSET_Y;
+
+        enemy.healthBarBg.setVisible(visible);
+        enemy.healthBarFill.setVisible(visible);
+
+        if (!visible)
+        {
+            return;
+        }
+
+        enemy.healthBarBg.setPosition(feet.x, barY);
+        enemy.healthBarBg.setDepth(depth + 2);
+
+        enemy.healthBarFill.setPosition(feet.x - (ENEMY_HEALTH_BAR_WIDTH / 2), barY);
+        enemy.healthBarFill.width = Math.max(0, ENEMY_HEALTH_BAR_WIDTH * ratio);
+        enemy.healthBarFill.setDepth(depth + 3);
+    }
+
     handlePlayerActionInputs (now)
     {
         if (this.player.state === 'dead')
@@ -963,7 +1066,10 @@ export class Game extends Scene
             return;
         }
 
-        if (Input.Keyboard.JustDown(this.keys.attack) && this.canStartPlayerAction(now, 'attack'))
+        if (
+            (Input.Keyboard.JustDown(this.keys.attack) || Input.Keyboard.JustDown(this.keys.attackAlt)) &&
+            this.canStartPlayerAction(now, 'attack')
+        )
         {
             this.startPlayerAction('attack', now);
             return;
@@ -1020,11 +1126,6 @@ export class Game extends Scene
                 (moveX / length) * PLAYER_SPEED,
                 (moveY / length) * PLAYER_SPEED
             );
-
-            if (moveX !== 0)
-            {
-                this.player.facing = moveX < 0 ? -1 : 1;
-            }
 
             this.player.idleBlinkAt = now + this.randomIdleBlinkDelay();
             this.setPlayerState('walk');
@@ -1264,19 +1365,21 @@ export class Game extends Scene
     spawnAttackEffect ()
     {
         const feet = this.getPlayerFeetPosition();
-        const attackX = feet.x + (this.player.facing * PLAYER_ATTACK_EFFECT_DISTANCE);
-        const attackY = feet.y - 28;
+        const aim = this.getPlayerAimVector();
+        const attackX = feet.x + (aim.x * PLAYER_ATTACK_EFFECT_DISTANCE);
+        const attackY = feet.y - 30 + (aim.y * 26);
         const slash = this.add.rectangle(
             attackX,
             attackY,
-            60,
-            24,
+            74,
+            28,
             0xffd37a,
             0.5
         )
-            .setDepth(this.playerSprite.depth + 1);
+            .setDepth(this.playerSprite.depth + 1)
+            .setRotation(Math.atan2(aim.y, aim.x));
 
-        this.applyDamageToEnemiesInArea(attackX, attackY, 82, 56, PLAYER_ATTACK_DAMAGE);
+        this.applyDamageToEnemiesInRadius(attackX, attackY, 48, PLAYER_ATTACK_DAMAGE);
 
         this.tweens.add({
             targets: slash,
@@ -1316,9 +1419,10 @@ export class Game extends Scene
     spawnCastProjectile ()
     {
         const feet = this.getPlayerFeetPosition();
+        const aim = this.getPlayerAimVector();
         const projectile = this.add.circle(
-            feet.x + (this.player.facing * PLAYER_PROJECTILE_OFFSET_X),
-            feet.y - PLAYER_PROJECTILE_OFFSET_Y,
+            feet.x + (aim.x * PLAYER_PROJECTILE_OFFSET_X),
+            feet.y - PLAYER_PROJECTILE_OFFSET_Y + (aim.y * 18),
             10,
             0x9bf6ff,
             0.95
@@ -1326,7 +1430,7 @@ export class Game extends Scene
 
         this.physics.add.existing(projectile);
         projectile.body.setAllowGravity(false);
-        projectile.body.setVelocity(this.player.facing * PLAYER_PROJECTILE_SPEED, 0);
+        projectile.body.setVelocity(aim.x * PLAYER_PROJECTILE_SPEED, aim.y * PLAYER_PROJECTILE_SPEED);
         projectile.expireAt = this.time.now + PLAYER_PROJECTILE_LIFETIME;
         projectile.setDepth(projectile.y + 6);
 
@@ -1354,7 +1458,7 @@ export class Game extends Scene
         return null;
     }
 
-    applyDamageToEnemiesInArea (centerX, centerY, width, height, damage)
+    applyDamageToEnemiesInRadius (centerX, centerY, radius, damage)
     {
         for (const enemy of this.enemies)
         {
@@ -1365,10 +1469,7 @@ export class Game extends Scene
 
             const feet = this.getEnemyFeetPosition(enemy);
 
-            if (
-                Math.abs(feet.x - centerX) <= width / 2 &&
-                Math.abs(feet.y - centerY) <= height / 2
-            )
+            if (Math.hypot(feet.x - centerX, feet.y - centerY) <= radius)
             {
                 this.applyDamageToEnemy(enemy, damage);
             }
@@ -1440,6 +1541,8 @@ export class Game extends Scene
 
     destroyEnemy (enemy)
     {
+        enemy.healthBarBg.destroy();
+        enemy.healthBarFill.destroy();
         enemy.sprite.destroy();
         enemy.shadow.destroy();
         enemy.hitbox.destroy();
@@ -1456,6 +1559,11 @@ export class Game extends Scene
             x: this.playerHitbox.x,
             y: this.playerHitbox.y + (PLAYER_HITBOX_HEIGHT / 2)
         };
+    }
+
+    getPlayerAimVector ()
+    {
+        return this.player.aim ?? { x: this.player.facing, y: 0 };
     }
 
     randomIdleBlinkDelay ()
