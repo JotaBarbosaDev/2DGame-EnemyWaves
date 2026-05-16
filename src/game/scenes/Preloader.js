@@ -1,3 +1,9 @@
+import {
+    ENEMY_ANIMATIONS,
+    ENEMY_VARIANTS,
+    getEnemyFrameKey,
+    getEnemyFramePath
+} from '../data/enemyAnimations';
 import { Scene } from 'phaser';
 import { MAP_ASSETS } from '../data/mapAssets';
 import { PLAYER_ANIMATIONS } from '../data/playerAnimations';
@@ -48,6 +54,20 @@ export class Preloader extends Scene
                     `${animation.key}-${frame}`,
                     `player1/PNG/Wraith_01/PNG Sequences/${animation.folder}/${animation.filePrefix}${suffix}.png`
                 );
+            }
+        }
+
+        for (const variant of ENEMY_VARIANTS)
+        {
+            for (const animation of ENEMY_ANIMATIONS)
+            {
+                for (let frame = 1; frame <= animation.frames; frame++)
+                {
+                    this.load.image(
+                        getEnemyFrameKey(variant, animation.state, frame),
+                        getEnemyFramePath(variant, animation.state, frame)
+                    );
+                }
             }
         }
     }
