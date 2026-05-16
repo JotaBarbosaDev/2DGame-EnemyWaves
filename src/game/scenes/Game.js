@@ -1405,7 +1405,11 @@ export class Game extends Scene
             {
                 projectile.destroy();
                 this.playerProjectiles.splice(index, 1);
+                continue;
             }
+
+            projectile.previousX = projectile.x;
+            projectile.previousY = projectile.y;
         }
     }
 
@@ -1679,6 +1683,8 @@ export class Game extends Scene
         projectile.body.setVelocity(aim.x * this.player.character.projectileSpeed, aim.y * this.player.character.projectileSpeed);
         projectile.damage = this.player.character.castDamage;
         projectile.expireAt = this.time.now + PLAYER_PROJECTILE_LIFETIME;
+        projectile.previousX = projectile.x;
+        projectile.previousY = projectile.y;
         projectile.setDepth(projectile.y + 6);
 
         this.playerProjectiles.push(projectile);
@@ -1686,6 +1692,9 @@ export class Game extends Scene
 
     findEnemyHitByProjectile (projectile)
     {
+        const previousX = projectile.previousX ?? projectile.x;
+        const previousY = projectile.previousY ?? projectile.y;
+
         for (const enemy of this.enemies)
         {
             if (enemy.state === 'dead')
@@ -1693,16 +1702,46 @@ export class Game extends Scene
                 continue;
             }
 
-            if (
-                Math.abs(projectile.x - enemy.hitbox.x) <= (ENEMY_HITBOX_WIDTH / 2) + projectile.radius &&
-                Math.abs(projectile.y - enemy.hitbox.y) <= (ENEMY_HITBOX_HEIGHT / 2) + projectile.radius + 10
-            )
+            if (this.doesProjectilePathHitEnemy(projectile, enemy, previousX, previousY))
             {
                 return enemy;
             }
         }
 
         return null;
+    }
+
+    doesProjectilePathHitEnemy (projectile, enemy, previousX, previousY)
+    {
+        const feet = this.getEnemyFeetPosition(enemy);
+        const torsoHeight = Math.max(26, enemy.sprite.displayHeight * 0.42);
+        const torsoRadius = Math.max(26, enemy.sprite.displayWidth * 0.34) + projectile.radius;
+        const torsoCenterY = feet.y - torsoHeight;
+        const feetRadius = Math.max(18, (ENEMY_HITBOX_WIDTH / 2) + projectile.radius);
+
+        return (
+            this.distancePointToSegment(feet.x, torsoCenterY, previousX, previousY, projectile.x, projectile.y) <= torsoRadius ||
+            this.distancePointToSegment(feet.x, feet.y - 10, previousX, previousY, projectile.x, projectile.y) <= feetRadius
+        );
+    }
+
+    distancePointToSegment (pointX, pointY, startX, startY, endX, endY)
+    {
+        const deltaX = endX - startX;
+        const deltaY = endY - startY;
+        const lengthSquared = (deltaX * deltaX) + (deltaY * deltaY);
+
+        if (lengthSquared === 0)
+        {
+            return Math.hypot(pointX - startX, pointY - startY);
+        }
+
+        const projection = (((pointX - startX) * deltaX) + ((pointY - startY) * deltaY)) / lengthSquared;
+        const clampedProjection = PhaserMath.Clamp(projection, 0, 1);
+        const closestX = startX + (deltaX * clampedProjection);
+        const closestY = startY + (deltaY * clampedProjection);
+
+        return Math.hypot(pointX - closestX, pointY - closestY);
     }
 
     applyDamageToEnemiesInRadius (centerX, centerY, radius, damage)
