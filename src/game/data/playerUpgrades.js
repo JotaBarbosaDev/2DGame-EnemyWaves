@@ -2,6 +2,7 @@ export const PLAYER_TOTAL_UPGRADE_POINTS = 30;
 
 export const PLAYER_UPGRADES = [
     {
+        color: 0x38bdf8,
         description: '+ velocidade de movimento e recolha de essencia',
         id: 'mobility',
         key: '1',
@@ -9,6 +10,7 @@ export const PLAYER_UPGRADES = [
         maxLevel: 10
     },
     {
+        color: 0xfb7185,
         description: '+ dano melee e alcance do golpe',
         id: 'assault',
         key: '2',
@@ -16,6 +18,7 @@ export const PLAYER_UPGRADES = [
         maxLevel: 10
     },
     {
+        color: 0xf59e0b,
         description: '+ velocidade de ataque e de cast',
         id: 'haste',
         key: '3',
@@ -23,6 +26,7 @@ export const PLAYER_UPGRADES = [
         maxLevel: 10
     },
     {
+        color: 0xa78bfa,
         description: '+ dano do cast, raio e velocidade do projetil',
         id: 'arcana',
         key: '4',
@@ -30,10 +34,19 @@ export const PLAYER_UPGRADES = [
         maxLevel: 10
     },
     {
+        color: 0x4ade80,
         description: '+ vida maxima',
-        id: 'vitality',
+        id: 'fortitude',
         key: '5',
-        label: 'Vitalidade',
+        label: 'Fortitude',
+        maxLevel: 10
+    },
+    {
+        color: 0x22c55e,
+        description: '+ regeneracao e reduz atraso apos dano',
+        id: 'regeneration',
+        key: '6',
+        label: 'Regeneracao',
         maxLevel: 10
     }
 ];

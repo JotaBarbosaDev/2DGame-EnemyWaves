@@ -35,7 +35,7 @@ export class MainMenu extends Scene
             strokeThickness: 6
         }).setOrigin(0.5);
 
-        this.add.text(512, 356, 'WASD mover | Space/J/K/LMB atacar | E/RMB cast | U build | 1-5 gastar', {
+        this.add.text(512, 356, 'WASD mover | Space/J/K/LMB atacar | E/RMB cast | U build | 1-6 gastar', {
             fontFamily: 'Courier New',
             fontSize: 20,
             color: '#f8fafc',
