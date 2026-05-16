@@ -59,7 +59,6 @@ const PLAYER_DEPTH_FRONT_OFFSET = 2;
 const PLAYER_AIM_MIN_DISTANCE = 12;
 const PLAYER_HEALTH_BAR_WIDTH = 240;
 const PLAYER_HEALTH_BAR_HEIGHT = 20;
-const PLAYER_HEALTH_BAR_Y = 26;
 const PLAYER_SCORE_PER_WAVE_CLEAR = 120;
 
 const ENEMY_VISUAL_SCALE = 0.28;
@@ -480,66 +479,141 @@ export class Game extends Scene
 
     createHud ()
     {
-        this.add.text(24, 58, 'WASD mover | Space/J/K/LMB atacar | E/RMB cast | Mira com o rato | T taunt | H hurt | L morrer', {
+        const leftPanelX = 18;
+        const topPanelY = 18;
+        const leftPanelWidth = 344;
+        const leftPanelHeight = 126;
+        const rightPanelWidth = 280;
+        const rightPanelHeight = 126;
+        const rightPanelX = this.scale.width - rightPanelWidth - 18;
+        const bottomHintWidth = 520;
+        const bottomHintHeight = 38;
+        const bottomHintX = (this.scale.width - bottomHintWidth) / 2;
+        const bottomHintY = this.scale.height - bottomHintHeight - 18;
+
+        this.add.rectangle(leftPanelX, topPanelY, leftPanelWidth, leftPanelHeight, 0x20150f, 0.72)
+            .setOrigin(0)
+            .setStrokeStyle(2, 0xe7c58f, 0.35)
+            .setScrollFactor(0)
+            .setDepth(4990);
+
+        this.add.rectangle(rightPanelX, topPanelY, rightPanelWidth, rightPanelHeight, 0x131a25, 0.74)
+            .setOrigin(0)
+            .setStrokeStyle(2, 0x9dc5ff, 0.35)
+            .setScrollFactor(0)
+            .setDepth(4990);
+
+        this.add.rectangle(bottomHintX, bottomHintY, bottomHintWidth, bottomHintHeight, 0x0f1720, 0.62)
+            .setOrigin(0)
+            .setStrokeStyle(1, 0xffffff, 0.12)
+            .setScrollFactor(0)
+            .setDepth(4990);
+
+        this.playerHeaderText = this.add.text(leftPanelX + 16, topPanelY + 12, '', {
             fontFamily: 'Arial Black',
-            fontSize: 18,
-            color: '#ffffff',
-            stroke: '#4a2e18',
-            strokeThickness: 6
-        })
-            .setScrollFactor(0)
-            .setDepth(5000);
-
-        this.waveStatusText = this.add.text(24, 90, '', {
-            fontFamily: 'Courier New',
-            fontSize: 18,
-            color: '#fff3d1',
+            fontSize: 22,
+            color: '#fff7ed',
             stroke: '#4a2e18',
             strokeThickness: 5
         })
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.playerStatusText = this.add.text(24, 124, '', {
+        this.playerStatusText = this.add.text(leftPanelX + 16, topPanelY + 42, '', {
             fontFamily: 'Courier New',
-            fontSize: 18,
+            fontSize: 16,
             color: '#fff3d1',
             stroke: '#4a2e18',
+            strokeThickness: 4
+        })
+            .setScrollFactor(0)
+            .setDepth(5000);
+
+        this.playerCooldownText = this.add.text(leftPanelX + 16, topPanelY + 102, '', {
+            fontFamily: 'Courier New',
+            fontSize: 16,
+            color: '#f7e7bb',
+            stroke: '#4a2e18',
+            strokeThickness: 4
+        })
+            .setScrollFactor(0)
+            .setDepth(5000);
+
+        this.waveStatusText = this.add.text(rightPanelX + 16, topPanelY + 14, '', {
+            fontFamily: 'Arial Black',
+            fontSize: 22,
+            color: '#eff6ff',
+            stroke: '#14243a',
             strokeThickness: 5
         })
+            .setScrollFactor(0)
+            .setDepth(5000);
+
+        this.scoreStatusText = this.add.text(rightPanelX + 16, topPanelY + 48, '', {
+            fontFamily: 'Courier New',
+            fontSize: 17,
+            color: '#dbeafe',
+            stroke: '#14243a',
+            strokeThickness: 4
+        })
+            .setScrollFactor(0)
+            .setDepth(5000);
+
+        this.enemyStatusText = this.add.text(rightPanelX + 16, topPanelY + 78, '', {
+            fontFamily: 'Courier New',
+            fontSize: 17,
+            color: '#dbeafe',
+            stroke: '#14243a',
+            strokeThickness: 4
+        })
+            .setScrollFactor(0)
+            .setDepth(5000);
+
+        this.controlHintText = this.add.text(this.scale.width / 2, bottomHintY + (bottomHintHeight / 2), 'WASD mover  |  Space/J/K/LMB atacar  |  E/RMB cast', {
+            fontFamily: 'Courier New',
+            fontSize: 16,
+            color: '#e5eefb',
+            stroke: '#0f1720',
+            strokeThickness: 4
+        })
+            .setOrigin(0.5)
             .setScrollFactor(0)
             .setDepth(5000);
 
         if (this.devMode)
         {
-            this.cellStatusText = this.add.text(24, 158, '', {
+            this.add.rectangle(18, this.scale.height - 116, 408, 52, 0x122333, 0.68)
+                .setOrigin(0)
+                .setStrokeStyle(1, 0x9dc5ff, 0.22)
+                .setScrollFactor(0)
+                .setDepth(4990);
+
+            this.cellStatusText = this.add.text(34, this.scale.height - 100, '', {
                 fontFamily: 'Courier New',
-                fontSize: 18,
-                color: '#fff3d1',
-                stroke: '#4a2e18',
-                strokeThickness: 5
+                fontSize: 15,
+                color: '#d8ebff',
+                stroke: '#122333',
+                strokeThickness: 4
             })
                 .setScrollFactor(0)
                 .setDepth(5000);
         }
 
-        const barX = this.scale.width / 2;
-
         this.playerHealthBarBg = this.add.rectangle(
-            barX,
-            PLAYER_HEALTH_BAR_Y,
+            leftPanelX + 16,
+            topPanelY + 76,
             PLAYER_HEALTH_BAR_WIDTH,
             PLAYER_HEALTH_BAR_HEIGHT,
             0x7f1d1d,
             0.9
         )
-            .setOrigin(0.5)
+            .setOrigin(0, 0.5)
             .setScrollFactor(0)
             .setDepth(5000);
 
         this.playerHealthBarFill = this.add.rectangle(
-            barX - (PLAYER_HEALTH_BAR_WIDTH / 2),
-            PLAYER_HEALTH_BAR_Y,
+            leftPanelX + 16,
+            topPanelY + 76,
             PLAYER_HEALTH_BAR_WIDTH,
             PLAYER_HEALTH_BAR_HEIGHT,
             0x2ecc71,
@@ -549,20 +623,20 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5001);
 
-        this.playerHealthBarLabel = this.add.text(barX, PLAYER_HEALTH_BAR_Y, 'PLAYER HP', {
-            fontFamily: 'Arial Black',
-            fontSize: 12,
+        this.playerHealthBarLabel = this.add.text(leftPanelX + 16, topPanelY + 76, '', {
+            fontFamily: 'Courier New',
+            fontSize: 13,
             color: '#fff7ed',
             stroke: '#3f1d0d',
             strokeThickness: 3
         })
-            .setOrigin(0.5)
+            .setOrigin(0, 0.5)
             .setScrollFactor(0)
             .setDepth(5002);
 
-        this.waveBannerText = this.add.text(this.scale.width / 2, 88, '', {
+        this.waveBannerText = this.add.text(this.scale.width / 2, topPanelY + leftPanelHeight + 20, '', {
             fontFamily: 'Arial Black',
-            fontSize: 28,
+            fontSize: 24,
             color: '#fef3c7',
             stroke: '#4a2e18',
             strokeThickness: 6
@@ -720,16 +794,15 @@ export class Game extends Scene
         const enemies = this.getLivingEnemyCount();
         const healthRatio = this.player.health / this.player.maxHealth;
 
-        this.waveStatusText.setText(
-            `Wave: ${Math.max(1, this.wave.current)} | Estado: ${waveStateLabel} | Score: ${this.score} | Vivos: ${enemies} | Por surgir: ${enemiesRemaining}`
-        );
-
-        this.playerStatusText.setText(
-            `Forma: ${this.player.character.label} | Estado: ${this.player.state} | HP: ${this.player.health}/${this.player.maxHealth} | Atk: ${attackCooldown} | Cast: ${castCooldown}`
-        );
+        this.playerHeaderText.setText(this.player.character.label);
+        this.playerStatusText.setText(`Estado: ${this.formatPlayerStateLabel(this.player.state)}   HP: ${this.player.health}/${this.player.maxHealth}`);
+        this.playerCooldownText.setText(`Ataque: ${attackCooldown}   Cast: ${castCooldown}`);
+        this.waveStatusText.setText(`Wave ${Math.max(1, this.wave.current)}  |  ${waveStateLabel}`);
+        this.scoreStatusText.setText(`Score: ${this.score}`);
+        this.enemyStatusText.setText(`Vivos: ${enemies}   Por surgir: ${enemiesRemaining}`);
 
         this.playerHealthBarFill.width = Math.max(0, PLAYER_HEALTH_BAR_WIDTH * healthRatio);
-        this.playerHealthBarLabel.setText(`${this.player.character.label} HP`);
+        this.playerHealthBarLabel.setText(`Vida ${this.player.health}/${this.player.maxHealth}`);
     }
 
     updatePlayerAim ()
@@ -1946,6 +2019,31 @@ export class Game extends Scene
     randomIdleBlinkDelay ()
     {
         return PhaserMath.Between(PLAYER_IDLE_BLINK_MIN_DELAY, PLAYER_IDLE_BLINK_MAX_DELAY);
+    }
+
+    formatPlayerStateLabel (state)
+    {
+        switch (state)
+        {
+            case 'idle':
+                return 'pronto';
+            case 'idle-blink':
+                return 'alerta';
+            case 'walk':
+                return 'mover';
+            case 'attack':
+                return 'ataque';
+            case 'cast':
+                return 'cast';
+            case 'hurt':
+                return 'ferido';
+            case 'taunt':
+                return 'provocar';
+            case 'dead':
+                return 'morto';
+            default:
+                return state;
+        }
     }
 
     formatCooldown (remainingMs)
