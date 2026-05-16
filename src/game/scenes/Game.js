@@ -343,11 +343,28 @@ export class Game extends Scene
             right: 'D',
             attack: 'J',
             attackAlt: 'SPACE',
-            cast: 'K',
+            attackThird: 'K',
+            cast: 'E',
             taunt: 'T',
             hurt: 'H',
             die: 'L',
             restart: 'R'
+        });
+        this.pointerQueuedAttack = false;
+        this.pointerQueuedCast = false;
+        this.input.mouse.disableContextMenu();
+        this.input.on('pointerdown', (pointer) => {
+
+            if (pointer.leftButtonDown())
+            {
+                this.pointerQueuedAttack = true;
+            }
+
+            if (pointer.rightButtonDown())
+            {
+                this.pointerQueuedCast = true;
+            }
+
         });
 
         const spawnCell = this.cellToCoords(PLAYER_SPAWN_CELL);
@@ -454,7 +471,7 @@ export class Game extends Scene
 
     createHud ()
     {
-        this.add.text(24, 58, 'WASD mover | Space/J atacar | K cast | Mira com o rato | T taunt | H hurt | L morrer | R restart', {
+        this.add.text(24, 58, 'WASD mover | Space/J/K/LMB atacar | E/RMB cast | Mira com o rato | T taunt | H hurt | L morrer', {
             fontFamily: 'Arial Black',
             fontSize: 18,
             color: '#ffffff',
@@ -1231,6 +1248,11 @@ export class Game extends Scene
 
     handlePlayerActionInputs (now)
     {
+        const pointerAttack = this.pointerQueuedAttack;
+        const pointerCast = this.pointerQueuedCast;
+        this.pointerQueuedAttack = false;
+        this.pointerQueuedCast = false;
+
         if (this.player.state === 'dead')
         {
             return;
@@ -1249,7 +1271,12 @@ export class Game extends Scene
         }
 
         if (
-            (Input.Keyboard.JustDown(this.keys.attack) || Input.Keyboard.JustDown(this.keys.attackAlt)) &&
+            (
+                Input.Keyboard.JustDown(this.keys.attack) ||
+                Input.Keyboard.JustDown(this.keys.attackAlt) ||
+                Input.Keyboard.JustDown(this.keys.attackThird) ||
+                pointerAttack
+            ) &&
             this.canStartPlayerAction(now, 'attack')
         )
         {
@@ -1257,7 +1284,7 @@ export class Game extends Scene
             return;
         }
 
-        if (Input.Keyboard.JustDown(this.keys.cast) && this.canStartPlayerAction(now, 'cast'))
+        if ((Input.Keyboard.JustDown(this.keys.cast) || pointerCast) && this.canStartPlayerAction(now, 'cast'))
         {
             this.startPlayerAction('cast', now);
             return;
@@ -1686,8 +1713,11 @@ export class Game extends Scene
             return;
         }
 
+        const appliedDamage = Math.min(enemy.health, damage);
+
         enemy.health = Math.max(0, enemy.health - damage);
         enemy.invulnerableUntil = this.time.now + ENEMY_HIT_INVULNERABILITY_MS;
+        this.spawnEnemyDamageNumber(enemy, appliedDamage, enemy.health <= 0);
 
         if (enemy.health <= 0)
         {
@@ -1700,6 +1730,33 @@ export class Game extends Scene
         enemy.idleUntil = this.time.now + PhaserMath.Between(ENEMY_IDLE_MIN_MS, ENEMY_IDLE_MAX_MS);
         this.setEnemyState(enemy, 'hurt');
         this.flashEnemyDamage(enemy);
+    }
+
+    spawnEnemyDamageNumber (enemy, damage, fatal)
+    {
+        const feet = this.getEnemyFeetPosition(enemy);
+        const text = this.add.text(feet.x + PhaserMath.Between(-12, 12), feet.y - 86, `${damage}`, {
+            fontFamily: 'Arial Black',
+            fontSize: fatal ? 24 : 20,
+            color: fatal ? '#fde68a' : '#ffffff',
+            stroke: fatal ? '#7c2d12' : '#991b1b',
+            strokeThickness: 5
+        })
+            .setOrigin(0.5)
+            .setDepth(enemy.sprite.depth + 5);
+
+        this.tweens.add({
+            targets: text,
+            alpha: 0,
+            duration: 520,
+            ease: 'Quad.easeOut',
+            y: text.y - 28,
+            onComplete: () => {
+
+                text.destroy();
+
+            }
+        });
     }
 
     killEnemy (enemy)

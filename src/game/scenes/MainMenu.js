@@ -29,7 +29,7 @@ export class MainMenu extends Scene
             strokeThickness: 6
         }).setOrigin(0.5);
 
-        this.add.text(512, 356, 'WASD mover | Space/J atacar | K cast | Mira com o rato', {
+        this.add.text(512, 356, 'WASD mover | Space/J/K/LMB atacar | E/RMB cast | Mira com o rato', {
             fontFamily: 'Courier New',
             fontSize: 20,
             color: '#f8fafc',
