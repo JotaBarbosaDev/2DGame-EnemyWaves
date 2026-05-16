@@ -1,3 +1,7 @@
+Player Asset1: https://erisesra.itch.io/character-templates-pack
+Player Asset2 Knight: https://erisesra.itch.io/character-templates-pack
+Player Asset3: [text](https://oboropixel.itch.io/characters-animations-asset-pack)
+
 # Phaser Vite Template
 
 This is a Phaser 4 project template that uses Vite for bundling. It supports hot-reloading for quick development workflow and includes scripts to generate production-ready builds.
