@@ -19,6 +19,7 @@ import {
     getPlayerAnimationKey,
     getPlayerFrameKey
 } from '../data/playerAnimations';
+import { DEFAULT_GAME_SETTINGS } from '../data/settings';
 import { WALK_GRID } from '../data/walkGrid';
 
 const TILE_WIDTH = 256;
@@ -111,6 +112,8 @@ export class Game extends Scene
 
     create ()
     {
+        this.settings = this.registry.get('settings') ?? { ...DEFAULT_GAME_SETTINGS };
+        this.devMode = Boolean(this.settings.devMode);
         this.cameras.main.setBackgroundColor(MAP_BACKGROUND_COLOR);
         this.physics.world.setBounds(PLAY_AREA.x, PLAY_AREA.y, PLAY_AREA.width, PLAY_AREA.height);
         this.staticZones = [];
@@ -120,7 +123,10 @@ export class Game extends Scene
         this.createMap();
         this.buildBlockedZonesFromMatrix();
         this.buildBlockedEdgeZones();
-        this.createGridOverlay();
+        if (this.devMode)
+        {
+            this.createGridOverlay();
+        }
         this.createPlayer();
         this.createEnemySystems();
         this.enableZoneCollisions();
@@ -147,7 +153,10 @@ export class Game extends Scene
         this.updateEnemySpawning(now);
         this.updateEnemies(now);
         this.syncPlayerVisual();
-        this.updateGridCursor();
+        if (this.devMode)
+        {
+            this.updateGridCursor();
+        }
         this.updateHud(now);
     }
 
@@ -501,15 +510,18 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.cellStatusText = this.add.text(24, 158, '', {
-            fontFamily: 'Courier New',
-            fontSize: 18,
-            color: '#fff3d1',
-            stroke: '#4a2e18',
-            strokeThickness: 5
-        })
-            .setScrollFactor(0)
-            .setDepth(5000);
+        if (this.devMode)
+        {
+            this.cellStatusText = this.add.text(24, 158, '', {
+                fontFamily: 'Courier New',
+                fontSize: 18,
+                color: '#fff3d1',
+                stroke: '#4a2e18',
+                strokeThickness: 5
+            })
+                .setScrollFactor(0)
+                .setDepth(5000);
+        }
 
         const barX = this.scale.width / 2;
 
@@ -670,6 +682,11 @@ export class Game extends Scene
 
     updateGridCursor ()
     {
+        if (!this.devMode || !this.currentPieceMarker || !this.currentWalkMarker || !this.cellStatusText)
+        {
+            return;
+        }
+
         const feet = this.getPlayerFeetPosition();
         const pieceCell = this.getPieceCellAtWorldPosition(feet.x, feet.y);
         const walkCell = this.getWalkCellAtWorldPosition(feet.x, feet.y);

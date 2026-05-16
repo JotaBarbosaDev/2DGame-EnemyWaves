@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { loadGameSettings } from '../data/settings';
 
 export class Boot extends Scene
 {
@@ -17,6 +18,7 @@ export class Boot extends Scene
 
     create ()
     {
+        this.registry.set('settings', loadGameSettings());
         this.scene.start('Preloader');
     }
 }
