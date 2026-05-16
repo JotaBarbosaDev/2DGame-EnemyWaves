@@ -12,6 +12,7 @@ import {
     getEnemyAnimationKey,
     getEnemyFrameKey
 } from '../data/enemyAnimations';
+import { getEnemyTypeConfig } from '../data/enemyTypes';
 import { PLAYER_ANIMATIONS } from '../data/playerAnimations';
 import { WALK_GRID } from '../data/walkGrid';
 
@@ -60,23 +61,19 @@ const PLAYER_AIM_MIN_DISTANCE = 12;
 const PLAYER_HEALTH_BAR_WIDTH = 240;
 const PLAYER_HEALTH_BAR_HEIGHT = 20;
 const PLAYER_HEALTH_BAR_Y = 26;
+const PLAYER_SCORE_PER_WAVE_CLEAR = 120;
 
 const ENEMY_VISUAL_SCALE = 0.28;
 const ENEMY_HITBOX_WIDTH = 34;
 const ENEMY_HITBOX_HEIGHT = 20;
 const ENEMY_SHADOW_OFFSET_Y = 10;
-const ENEMY_MAX_COUNT = 6;
 const ENEMY_SPAWN_DELAY = 1500;
 const ENEMY_SPAWN_INTERVAL = 2600;
 const ENEMY_SPAWN_VARIANCE = 700;
 const ENEMY_SPAWN_VIEW_MARGIN = 220;
 const ENEMY_MIN_PLAYER_DISTANCE = 240;
-const ENEMY_WALK_SPEED = 74;
-const ENEMY_RUN_SPEED = 126;
 const ENEMY_RUN_DISTANCE = 230;
 const ENEMY_ATTACK_RANGE = 56;
-const ENEMY_ATTACK_COOLDOWN = 1100;
-const ENEMY_ATTACK_DAMAGE = 1;
 const ENEMY_IDLE_MIN_MS = 180;
 const ENEMY_IDLE_MAX_MS = 480;
 const ENEMY_CORPSE_DURATION = 2200;
@@ -84,6 +81,11 @@ const ENEMY_HIT_INVULNERABILITY_MS = 150;
 const ENEMY_HEALTH_BAR_WIDTH = 42;
 const ENEMY_HEALTH_BAR_HEIGHT = 5;
 const ENEMY_HEALTH_BAR_OFFSET_Y = 74;
+const WAVE_BREAK_DURATION = 1600;
+const WAVE_BASE_ENEMY_COUNT = 4;
+const WAVE_ENEMY_GROWTH = 2;
+const WAVE_CONCURRENT_BASE = 3;
+const WAVE_CONCURRENT_MAX = 8;
 
 const PLAYER_ACTION_STATES = new Set(['attack', 'cast', 'hurt', 'taunt', 'dead']);
 const PLAYER_STATE_TO_ANIMATION = Object.freeze(
@@ -414,6 +416,15 @@ export class Game extends Scene
         this.createEnemyAnimations();
         this.enemies = [];
         this.enemyIdCounter = 0;
+        this.score = 0;
+        this.wave = {
+            active: false,
+            clearedAt: 0,
+            current: 0,
+            enemiesToSpawn: 0,
+            spawned: 0,
+            upcomingAt: this.time.now + ENEMY_SPAWN_DELAY
+        };
         this.nextEnemySpawnAt = this.time.now + ENEMY_SPAWN_DELAY;
     }
 
@@ -452,7 +463,7 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.add.text(24, 90, 'Wraith_01 com depth pelos pes + zombies spawnam fora da camera', {
+        this.waveStatusText = this.add.text(24, 90, '', {
             fontFamily: 'Courier New',
             fontSize: 18,
             color: '#fff3d1',
@@ -518,6 +529,18 @@ export class Game extends Scene
             .setOrigin(0.5)
             .setScrollFactor(0)
             .setDepth(5002);
+
+        this.waveBannerText = this.add.text(this.scale.width / 2, 88, '', {
+            fontFamily: 'Arial Black',
+            fontSize: 28,
+            color: '#fef3c7',
+            stroke: '#4a2e18',
+            strokeThickness: 6
+        })
+            .setOrigin(0.5)
+            .setScrollFactor(0)
+            .setDepth(5003)
+            .setAlpha(0);
     }
 
     syncPlayerVisual ()
@@ -657,12 +680,17 @@ export class Game extends Scene
     {
         const attackCooldown = this.formatCooldown(this.player.nextAttackAt - now);
         const castCooldown = this.formatCooldown(this.player.nextCastAt - now);
-        const restartHint = this.player.state === 'dead' ? ' | R para reiniciar' : '';
+        const waveStateLabel = this.wave.active ? 'ativa' : 'prepara';
+        const enemiesRemaining = Math.max(0, this.wave.enemiesToSpawn - this.wave.spawned);
         const enemies = this.getLivingEnemyCount();
         const healthRatio = this.player.health / this.player.maxHealth;
 
+        this.waveStatusText.setText(
+            `Wave: ${Math.max(1, this.wave.current)} | Estado: ${waveStateLabel} | Score: ${this.score} | Vivos: ${enemies} | Por surgir: ${enemiesRemaining}`
+        );
+
         this.playerStatusText.setText(
-            `Estado: ${this.player.state} | HP: ${this.player.health}/${this.player.maxHealth} | Inimigos: ${enemies} | Atk: ${attackCooldown} | Cast: ${castCooldown}${restartHint}`
+            `Estado: ${this.player.state} | HP: ${this.player.health}/${this.player.maxHealth} | Atk: ${attackCooldown} | Cast: ${castCooldown}`
         );
 
         this.playerHealthBarFill.width = Math.max(0, PLAYER_HEALTH_BAR_WIDTH * healthRatio);
@@ -693,20 +721,45 @@ export class Game extends Scene
 
     updateEnemySpawning (now)
     {
-        if (this.player.state === 'dead' || now < this.nextEnemySpawnAt)
+        if (this.player.state === 'dead')
         {
             return;
         }
 
-        if (this.getLivingEnemyCount() >= ENEMY_MAX_COUNT)
+        if (!this.wave.active)
         {
-            this.nextEnemySpawnAt = now + ENEMY_SPAWN_INTERVAL;
+            if (now >= this.wave.upcomingAt)
+            {
+                this.startWave(this.wave.current + 1, now);
+            }
+
+            return;
+        }
+
+        if (this.wave.spawned >= this.wave.enemiesToSpawn)
+        {
+            if (this.getLivingEnemyCount() === 0)
+            {
+                this.completeWave(now);
+            }
+
+            return;
+        }
+
+        if (now < this.nextEnemySpawnAt)
+        {
+            return;
+        }
+
+        if (this.getLivingEnemyCount() >= this.getWaveConcurrentEnemyLimit())
+        {
+            this.nextEnemySpawnAt = now + 280;
             return;
         }
 
         const spawnPoint = this.findEnemySpawnPoint();
 
-        this.nextEnemySpawnAt = now + ENEMY_SPAWN_INTERVAL + PhaserMath.Between(-ENEMY_SPAWN_VARIANCE, ENEMY_SPAWN_VARIANCE);
+        this.nextEnemySpawnAt = now + this.getWaveSpawnInterval() + PhaserMath.Between(-this.getWaveSpawnVariance(), this.getWaveSpawnVariance());
 
         if (!spawnPoint)
         {
@@ -714,6 +767,7 @@ export class Game extends Scene
         }
 
         this.spawnEnemy(spawnPoint.x, spawnPoint.y);
+        this.wave.spawned += 1;
     }
 
     updateEnemies (now)
@@ -803,7 +857,7 @@ export class Game extends Scene
                 continue;
             }
 
-            const speed = distance > ENEMY_RUN_DISTANCE ? ENEMY_WALK_SPEED : ENEMY_RUN_SPEED;
+            const speed = distance > ENEMY_RUN_DISTANCE ? enemy.walkSpeed : enemy.runSpeed;
             const state = distance > ENEMY_RUN_DISTANCE ? 'walk' : 'run';
             const length = distance || 1;
 
@@ -818,13 +872,15 @@ export class Game extends Scene
 
     spawnEnemy (feetX, feetY)
     {
-        const variant = ENEMY_VARIANTS[PhaserMath.Between(0, ENEMY_VARIANTS.length - 1)];
-        const health = variant === 'Zombie3' ? 4 : 3;
+        const variant = this.pickEnemyVariantForWave(this.wave.current);
+        const stats = this.buildEnemyStats(variant, this.wave.current);
         const enemy = {
             actionToken: 0,
             attackToken: 0,
+            attackDamage: stats.attackDamage,
+            attackCooldown: stats.attackCooldown,
             facing: feetX >= this.getPlayerFeetPosition().x ? -1 : 1,
-            health,
+            health: stats.health,
             healthBarBg: this.add.rectangle(feetX, feetY - ENEMY_HEALTH_BAR_OFFSET_Y, ENEMY_HEALTH_BAR_WIDTH, ENEMY_HEALTH_BAR_HEIGHT, 0x7f1d1d, 0.92)
                 .setVisible(false),
             healthBarFill: this.add.rectangle(feetX - (ENEMY_HEALTH_BAR_WIDTH / 2), feetY - ENEMY_HEALTH_BAR_OFFSET_Y, ENEMY_HEALTH_BAR_WIDTH, ENEMY_HEALTH_BAR_HEIGHT, 0x2ecc71, 0.98)
@@ -834,15 +890,19 @@ export class Game extends Scene
             id: ++this.enemyIdCounter,
             idleUntil: this.time.now + PhaserMath.Between(ENEMY_IDLE_MIN_MS, ENEMY_IDLE_MAX_MS),
             invulnerableUntil: 0,
-            maxHealth: health,
+            maxHealth: stats.health,
             nextAttackAt: this.time.now + 320,
             removeAt: 0,
+            runSpeed: stats.runSpeed,
+            scoreValue: stats.scoreValue,
             shadow: this.add.ellipse(feetX, feetY + ENEMY_SHADOW_OFFSET_Y, 46, 18, 0x000000, 0.16),
             sprite: this.add.sprite(feetX, feetY, getEnemyFrameKey(variant, 'idle', 1))
                 .setOrigin(0.5, 1)
                 .setScale(ENEMY_VISUAL_SCALE),
             state: 'jump',
-            variant
+            variant,
+            walkSpeed: stats.walkSpeed,
+            wave: this.wave.current
         };
 
         this.physics.add.existing(enemy.hitbox);
@@ -865,7 +925,7 @@ export class Game extends Scene
     {
         const token = ++enemy.attackToken;
 
-        enemy.nextAttackAt = now + ENEMY_ATTACK_COOLDOWN;
+        enemy.nextAttackAt = now + enemy.attackCooldown;
         enemy.hitbox.body.setVelocity(0, 0);
         this.setEnemyState(enemy, 'attack');
 
@@ -881,7 +941,7 @@ export class Game extends Scene
 
             if (Math.hypot(playerFeet.x - enemyFeet.x, playerFeet.y - enemyFeet.y) <= ENEMY_ATTACK_RANGE + 10)
             {
-                this.applyPlayerDamage(ENEMY_ATTACK_DAMAGE);
+                this.applyPlayerDamage(enemy.attackDamage);
             }
 
         });
@@ -967,6 +1027,109 @@ export class Game extends Scene
         return {
             x: enemy.hitbox.x,
             y: enemy.hitbox.y + (ENEMY_HITBOX_HEIGHT / 2)
+        };
+    }
+
+    startWave (waveNumber, now)
+    {
+        this.wave.active = true;
+        this.wave.clearedAt = 0;
+        this.wave.current = waveNumber;
+        this.wave.enemiesToSpawn = this.getWaveEnemyTotal(waveNumber);
+        this.wave.spawned = 0;
+        this.wave.upcomingAt = now;
+        this.nextEnemySpawnAt = now + 360;
+
+        this.showWaveBanner(`Wave ${waveNumber}`);
+    }
+
+    completeWave (now)
+    {
+        if (!this.wave.active)
+        {
+            return;
+        }
+
+        this.wave.active = false;
+        this.wave.clearedAt = now;
+        this.wave.upcomingAt = now + WAVE_BREAK_DURATION;
+        this.score += PLAYER_SCORE_PER_WAVE_CLEAR + (this.wave.current * 25);
+
+        this.showWaveBanner(`Wave ${this.wave.current} limpa`);
+    }
+
+    showWaveBanner (label)
+    {
+        if (!this.waveBannerText)
+        {
+            return;
+        }
+
+        this.waveBannerText.setText(label);
+        this.waveBannerText.setAlpha(1);
+        this.waveBannerText.setScale(0.92);
+
+        this.tweens.killTweensOf(this.waveBannerText);
+        this.tweens.add({
+            targets: this.waveBannerText,
+            alpha: 0,
+            duration: 900,
+            ease: 'Quad.easeOut',
+            scaleX: 1.08,
+            scaleY: 1.08
+        });
+    }
+
+    getWaveEnemyTotal (waveNumber)
+    {
+        return WAVE_BASE_ENEMY_COUNT + ((waveNumber - 1) * WAVE_ENEMY_GROWTH);
+    }
+
+    getWaveConcurrentEnemyLimit ()
+    {
+        return Math.min(WAVE_CONCURRENT_MAX, WAVE_CONCURRENT_BASE + Math.floor((this.wave.current - 1) / 2));
+    }
+
+    getWaveSpawnInterval ()
+    {
+        return Math.max(1100, ENEMY_SPAWN_INTERVAL - ((this.wave.current - 1) * 180));
+    }
+
+    getWaveSpawnVariance ()
+    {
+        return Math.max(180, ENEMY_SPAWN_VARIANCE - ((this.wave.current - 1) * 40));
+    }
+
+    pickEnemyVariantForWave (waveNumber)
+    {
+        const variants = ENEMY_VARIANTS.filter((variant) => getEnemyTypeConfig(variant).unlockWave <= waveNumber);
+        const weightedVariants = [];
+
+        for (const variant of variants)
+        {
+            const { weight } = getEnemyTypeConfig(variant);
+
+            for (let index = 0; index < weight; index++)
+            {
+                weightedVariants.push(variant);
+            }
+        }
+
+        return weightedVariants[PhaserMath.Between(0, weightedVariants.length - 1)];
+    }
+
+    buildEnemyStats (variant, waveNumber)
+    {
+        const config = getEnemyTypeConfig(variant);
+        const waveOffset = Math.max(0, waveNumber - config.unlockWave);
+
+        return {
+            attackCooldown: Math.max(600, config.attackCooldown - (waveOffset * 25)),
+            attackDamage: config.attackDamage + Math.floor(waveOffset / 3),
+            health: config.health + (waveOffset * config.healthGrowth),
+            runSpeed: config.runSpeed + (waveOffset * config.runSpeedGrowth),
+            scoreValue: config.scoreValue + (waveOffset * config.scoreGrowth),
+            walkSpeed: config.walkSpeed + (waveOffset * config.walkSpeedGrowth)
         };
     }
 
@@ -1345,7 +1508,10 @@ export class Game extends Scene
         this.player.gameOverQueued = true;
         this.time.delayedCall(120, () => {
 
-            this.scene.start('GameOver');
+            this.scene.start('GameOver', {
+                score: this.score,
+                wave: this.wave.current
+            });
 
         });
     }
@@ -1525,6 +1691,7 @@ export class Game extends Scene
         enemy.shadow.setAlpha(0.08);
         ++enemy.actionToken;
         this.setEnemyState(enemy, 'dead');
+        this.score += enemy.scoreValue;
     }
 
     flashEnemyDamage (enemy)

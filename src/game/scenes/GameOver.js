@@ -7,7 +7,7 @@ export class GameOver extends Scene
         super('GameOver');
     }
 
-    create ()
+    create (data)
     {
         this.cameras.main.setBackgroundColor(0x2a0d13);
 
@@ -26,6 +26,14 @@ export class GameOver extends Scene
             fontFamily: 'Courier New',
             fontSize: 22,
             color: '#fecaca',
+            stroke: '#3f0b14',
+            strokeThickness: 5
+        }).setOrigin(0.5);
+
+        this.add.text(512, 346, `Wave alcancada: ${data?.wave ?? 1} | Score: ${data?.score ?? 0}`, {
+            fontFamily: 'Courier New',
+            fontSize: 20,
+            color: '#fee2e2',
             stroke: '#3f0b14',
             strokeThickness: 5
         }).setOrigin(0.5);
