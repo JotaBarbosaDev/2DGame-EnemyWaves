@@ -9,17 +9,82 @@ export class GameOver extends Scene
 
     create ()
     {
-        this.cameras.main.setBackgroundColor(0xff0000);
+        this.cameras.main.setBackgroundColor(0x2a0d13);
 
-        this.add.image(512, 384, 'background').setAlpha(0.5);
+        this.add.image(512, 384, 'background').setAlpha(0.22);
 
-        this.add.text(512, 384, 'Game Over', {
-            fontFamily: 'Arial Black', fontSize: 64, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
+        this.add.text(512, 230, 'Game Over', {
+            fontFamily: 'Arial Black',
+            fontSize: 68,
+            color: '#ffffff',
+            stroke: '#2b0b12',
+            strokeThickness: 10,
             align: 'center'
         }).setOrigin(0.5);
 
-        this.input.once('pointerdown', () => {
+        this.add.text(512, 306, 'Foste derrotado. Escolhe o proximo passo.', {
+            fontFamily: 'Courier New',
+            fontSize: 22,
+            color: '#fecaca',
+            stroke: '#3f0b14',
+            strokeThickness: 5
+        }).setOrigin(0.5);
+
+        const restartButton = this.add.rectangle(512, 420, 280, 70, 0xb45309, 0.96)
+            .setStrokeStyle(4, 0xffedd5, 1)
+            .setInteractive({ useHandCursor: true });
+
+        this.add.text(512, 420, 'Reiniciar', {
+            fontFamily: 'Arial Black',
+            fontSize: 28,
+            color: '#fff7ed',
+            stroke: '#7c2d12',
+            strokeThickness: 6
+        }).setOrigin(0.5);
+
+        const homeButton = this.add.rectangle(512, 512, 280, 70, 0x1d4ed8, 0.96)
+            .setStrokeStyle(4, 0xdbeafe, 1)
+            .setInteractive({ useHandCursor: true });
+
+        this.add.text(512, 512, 'Home', {
+            fontFamily: 'Arial Black',
+            fontSize: 28,
+            color: '#eff6ff',
+            stroke: '#1e3a8a',
+            strokeThickness: 6
+        }).setOrigin(0.5);
+
+        restartButton.on('pointerover', () => {
+
+            restartButton.setFillStyle(0xc05621, 1);
+
+        });
+
+        restartButton.on('pointerout', () => {
+
+            restartButton.setFillStyle(0xb45309, 0.96);
+
+        });
+
+        restartButton.on('pointerdown', () => {
+
+            this.scene.start('Game');
+
+        });
+
+        homeButton.on('pointerover', () => {
+
+            homeButton.setFillStyle(0x2563eb, 1);
+
+        });
+
+        homeButton.on('pointerout', () => {
+
+            homeButton.setFillStyle(0x1d4ed8, 0.96);
+
+        });
+
+        homeButton.on('pointerdown', () => {
 
             this.scene.start('MainMenu');
 

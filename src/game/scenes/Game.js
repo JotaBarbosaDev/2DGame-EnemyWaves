@@ -376,6 +376,7 @@ export class Game extends Scene
             actionToken: 0,
             aim: { x: 1, y: 0 },
             facing: 1,
+            gameOverQueued: false,
             health: PLAYER_MAX_HEALTH,
             idleBlinkAt: this.time.now + this.randomIdleBlinkDelay(),
             invulnerableUntil: 0,
@@ -1046,11 +1047,6 @@ export class Game extends Scene
     {
         if (this.player.state === 'dead')
         {
-            if (Input.Keyboard.JustDown(this.keys.restart))
-            {
-                this.scene.restart();
-            }
-
             return;
         }
 
@@ -1285,6 +1281,7 @@ export class Game extends Scene
     {
         if (animation.key === PLAYER_STATE_TO_ANIMATION.dead)
         {
+            this.goToGameOver();
             return;
         }
 
@@ -1336,6 +1333,21 @@ export class Game extends Scene
         this.playerHitbox.body.setVelocity(0, 0);
         this.setPlayerState('dead');
         this.cameras.main.shake(180, 0.0025);
+    }
+
+    goToGameOver ()
+    {
+        if (this.player.gameOverQueued)
+        {
+            return;
+        }
+
+        this.player.gameOverQueued = true;
+        this.time.delayedCall(120, () => {
+
+            this.scene.start('GameOver');
+
+        });
     }
 
     flashPlayerDamage ()
