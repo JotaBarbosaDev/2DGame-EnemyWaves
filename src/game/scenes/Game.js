@@ -1,4 +1,4 @@
-import { Scene } from 'phaser';
+import { Input, Math as PhaserMath, Scene } from 'phaser';
 import {
     BLOCKED_EDGES,
     MAP_DECORATIONS,
@@ -6,6 +6,7 @@ import {
     MAP_TILES,
     PLAYER_SPAWN_CELL
 } from '../data/mapLayout';
+import { PLAYER_ANIMATIONS } from '../data/playerAnimations';
 import { WALK_GRID } from '../data/walkGrid';
 
 const TILE_WIDTH = 256;
@@ -29,6 +30,29 @@ const WALK_CELL_HEIGHT = PIECE_CELL_HEIGHT / WALK_SUBROWS_PER_CELL;
 const WALK_ORIGIN_X = GRID_ORIGIN_X;
 const WALK_ORIGIN_Y = GRID_ORIGIN_Y + FLOOR_VISIBLE_TOP_OFFSET;
 const EDGE_BARRIER_THICKNESS = 16;
+const PLAYER_VISUAL_SCALE = 0.24;
+const PLAYER_HITBOX_WIDTH = 42;
+const PLAYER_HITBOX_HEIGHT = 24;
+const PLAYER_FOOT_Y_OFFSET = 6;
+const PLAYER_SHADOW_OFFSET_Y = 10;
+const PLAYER_MAX_HEALTH = 5;
+const PLAYER_ATTACK_COOLDOWN = 420;
+const PLAYER_CAST_COOLDOWN = 900;
+const PLAYER_INVULNERABILITY_MS = 900;
+const PLAYER_IDLE_BLINK_MIN_DELAY = 2400;
+const PLAYER_IDLE_BLINK_MAX_DELAY = 4400;
+const PLAYER_ATTACK_EFFECT_DISTANCE = 44;
+const PLAYER_PROJECTILE_SPEED = 360;
+const PLAYER_PROJECTILE_LIFETIME = 1000;
+const PLAYER_PROJECTILE_OFFSET_X = 28;
+const PLAYER_PROJECTILE_OFFSET_Y = 46;
+const PLAYER_DEPTH_BEHIND_OFFSET = 180;
+const PLAYER_DEPTH_FRONT_OFFSET = 2;
+
+const PLAYER_ACTION_STATES = new Set(['attack', 'cast', 'hurt', 'taunt', 'dead']);
+const PLAYER_STATE_TO_ANIMATION = Object.freeze(
+    Object.fromEntries(PLAYER_ANIMATIONS.map((animation) => [animation.state, animation.key]))
+);
 
 const PLAY_AREA = {
     x: WALK_ORIGIN_X,
@@ -58,6 +82,7 @@ export class Game extends Scene
         this.cameras.main.setBackgroundColor(MAP_BACKGROUND_COLOR);
         this.physics.world.setBounds(PLAY_AREA.x, PLAY_AREA.y, PLAY_AREA.width, PLAY_AREA.height);
         this.staticZones = [];
+        this.playerProjectiles = [];
         this.playerBehindCellKeys = this.buildPlayerBehindCellKeys();
 
         this.createMap();
@@ -80,52 +105,14 @@ export class Game extends Scene
             return;
         }
 
-        let moveX = 0;
-        let moveY = 0;
+        const now = this.time.now;
 
-        if (this.keys.left.isDown)
-        {
-            moveX -= 1;
-        }
-
-        if (this.keys.right.isDown)
-        {
-            moveX += 1;
-        }
-
-        if (this.keys.up.isDown)
-        {
-            moveY -= 1;
-        }
-
-        if (this.keys.down.isDown)
-        {
-            moveY += 1;
-        }
-
-        if (moveX !== 0 || moveY !== 0)
-        {
-            const length = Math.hypot(moveX, moveY);
-
-            this.playerHitbox.body.setVelocity(
-                (moveX / length) * PLAYER_SPEED,
-                (moveY / length) * PLAYER_SPEED
-            );
-            this.playerSprite.anims.play('player-run', true);
-
-            if (moveX !== 0)
-            {
-                this.playerSprite.setFlipX(moveX < 0);
-            }
-        }
-        else
-        {
-            this.playerHitbox.body.setVelocity(0, 0);
-            this.playerSprite.anims.play('player-idle', true);
-        }
-
+        this.handlePlayerActionInputs(now);
+        this.updatePlayerMovement(now);
+        this.updatePlayerProjectiles(now);
         this.syncPlayerVisual();
         this.updateGridCursor();
+        this.updateHud(now);
     }
 
     createMap ()
@@ -316,50 +303,74 @@ export class Game extends Scene
             up: 'W',
             left: 'A',
             down: 'S',
-            right: 'D'
+            right: 'D',
+            attack: 'J',
+            cast: 'K',
+            taunt: 'T',
+            hurt: 'H',
+            die: 'L',
+            restart: 'R'
         });
 
         const spawnCell = this.cellToCoords(PLAYER_SPAWN_CELL);
+        const footX = this.pieceCellCenterX(spawnCell.column);
+        const footY = this.pieceCellCenterY(spawnCell.row) + PLAYER_FOOT_Y_OFFSET;
 
-        this.playerHitbox = this.add.zone(this.pieceCellCenterX(spawnCell.column), this.pieceCellCenterY(spawnCell.row) - 10, 48, 28);
+        this.playerHitbox = this.add.zone(
+            footX,
+            footY - (PLAYER_HITBOX_HEIGHT / 2),
+            PLAYER_HITBOX_WIDTH,
+            PLAYER_HITBOX_HEIGHT
+        );
         this.physics.add.existing(this.playerHitbox);
+        this.playerHitbox.body.setAllowGravity(false);
         this.playerHitbox.body.setCollideWorldBounds(true);
 
-        this.playerShadow = this.add.ellipse(this.playerHitbox.x, this.playerHitbox.y + 12, 56, 24, 0x000000, 0.18);
-        this.playerSprite = this.add.sprite(this.playerHitbox.x, this.playerHitbox.y - 48, 'player-idle-0').setScale(0.24);
+        this.playerShadow = this.add.ellipse(footX, footY + PLAYER_SHADOW_OFFSET_Y, 58, 22, 0x000000, 0.18);
+        this.playerSprite = this.add.sprite(footX, footY, 'player-idle-0')
+            .setOrigin(0.5, 1)
+            .setScale(PLAYER_VISUAL_SCALE);
 
-        this.playerSprite.anims.play('player-idle');
+        this.player = {
+            actionToken: 0,
+            facing: 1,
+            health: PLAYER_MAX_HEALTH,
+            idleBlinkAt: this.time.now + this.randomIdleBlinkDelay(),
+            invulnerableUntil: 0,
+            maxHealth: PLAYER_MAX_HEALTH,
+            nextAttackAt: 0,
+            nextCastAt: 0,
+            state: 'idle'
+        };
+
+        this.playerSprite.on('animationcomplete', this.handlePlayerAnimationComplete, this);
+        this.playPlayerAnimationForState('idle');
         this.syncPlayerVisual();
     }
 
     createPlayerAnimations ()
     {
-        if (!this.anims.exists('player-idle'))
+        for (const animation of PLAYER_ANIMATIONS)
         {
-            this.anims.create({
-                key: 'player-idle',
-                frames: this.buildFrameList('player-idle'),
-                frameRate: 8,
-                repeat: -1
-            });
-        }
+            if (this.anims.exists(animation.key))
+            {
+                continue;
+            }
 
-        if (!this.anims.exists('player-run'))
-        {
             this.anims.create({
-                key: 'player-run',
-                frames: this.buildFrameList('player-run'),
-                frameRate: 14,
-                repeat: -1
+                key: animation.key,
+                frames: this.buildFrameList(animation.key, animation.frames),
+                frameRate: animation.frameRate,
+                repeat: animation.repeat
             });
         }
     }
 
     createHud ()
     {
-        this.add.text(24, 24, 'WASD to move', {
+        this.add.text(24, 24, 'WASD mover | J atacar | K cast | T taunt | H hurt | L morrer | R restart', {
             fontFamily: 'Arial Black',
-            fontSize: 20,
+            fontSize: 18,
             color: '#ffffff',
             stroke: '#4a2e18',
             strokeThickness: 6
@@ -367,7 +378,7 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.add.text(24, 58, 'Mapa: mapLayout.js | Colisao: walkGrid.js', {
+        this.add.text(24, 56, 'Wraith_01 com depth pelos pes + zonas behind do mapa', {
             fontFamily: 'Courier New',
             fontSize: 18,
             color: '#fff3d1',
@@ -377,7 +388,17 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.cellStatusText = this.add.text(24, 92, '', {
+        this.playerStatusText = this.add.text(24, 90, '', {
+            fontFamily: 'Courier New',
+            fontSize: 18,
+            color: '#fff3d1',
+            stroke: '#4a2e18',
+            strokeThickness: 5
+        })
+            .setScrollFactor(0)
+            .setDepth(5000);
+
+        this.cellStatusText = this.add.text(24, 124, '', {
             fontFamily: 'Courier New',
             fontSize: 18,
             color: '#fff3d1',
@@ -390,14 +411,17 @@ export class Game extends Scene
 
     syncPlayerVisual ()
     {
-        const pieceCell = this.getPieceCellAtWorldPosition(this.playerHitbox.x, this.playerHitbox.y);
+        const feet = this.getPlayerFeetPosition();
+        const pieceCell = this.getPieceCellAtWorldPosition(feet.x, feet.y);
         const playerBehindForeground = pieceCell && this.isPlayerBehindCell(pieceCell);
-        const playerDepth = playerBehindForeground ? this.playerHitbox.y - 180 : this.playerHitbox.y + 2;
+        const playerDepth = playerBehindForeground ? feet.y - PLAYER_DEPTH_BEHIND_OFFSET : feet.y + PLAYER_DEPTH_FRONT_OFFSET;
 
-        this.playerShadow.setPosition(this.playerHitbox.x, this.playerHitbox.y + 12);
+        this.playerShadow.setPosition(feet.x, feet.y + PLAYER_SHADOW_OFFSET_Y);
         this.playerShadow.setDepth(playerDepth - 3);
+        this.playerShadow.setAlpha(this.player.state === 'dead' ? 0.1 : 0.18);
 
-        this.playerSprite.setPosition(this.playerHitbox.x, this.playerHitbox.y - 48);
+        this.playerSprite.setPosition(feet.x, feet.y);
+        this.playerSprite.setFlipX(this.player.facing < 0);
         this.playerSprite.setDepth(playerDepth);
     }
 
@@ -406,9 +430,9 @@ export class Game extends Scene
         return this.playerBehindCellKeys.has(this.cellKey(pieceCell.column, pieceCell.row));
     }
 
-    buildFrameList (prefix)
+    buildFrameList (prefix, frameCount)
     {
-        return Array.from({ length: 10 }, (_, index) => ({ key: `${prefix}-${index}` }));
+        return Array.from({ length: frameCount }, (_, index) => ({ key: `${prefix}-${index}` }));
     }
 
     placeFloorTile (key, column, row, depth)
@@ -481,8 +505,9 @@ export class Game extends Scene
 
     updateGridCursor ()
     {
-        const pieceCell = this.getPieceCellAtWorldPosition(this.playerHitbox.x, this.playerHitbox.y);
-        const walkCell = this.getWalkCellAtWorldPosition(this.playerHitbox.x, this.playerHitbox.y);
+        const feet = this.getPlayerFeetPosition();
+        const pieceCell = this.getPieceCellAtWorldPosition(feet.x, feet.y);
+        const walkCell = this.getWalkCellAtWorldPosition(feet.x, feet.y);
 
         if (!pieceCell || !walkCell)
         {
@@ -502,6 +527,425 @@ export class Game extends Scene
         this.cellStatusText.setText(
             `Celula: ${pieceCell.id} | Sub: ${walkCell.id} | Matriz: ${walkCell.walkable ? '1' : '0'} | Camada: ${this.isPlayerBehindCell(pieceCell) ? 'tras' : 'frente'}`
         );
+    }
+
+    updateHud (now)
+    {
+        const attackCooldown = this.formatCooldown(this.player.nextAttackAt - now);
+        const castCooldown = this.formatCooldown(this.player.nextCastAt - now);
+        const restartHint = this.player.state === 'dead' ? ' | R para reiniciar' : '';
+
+        this.playerStatusText.setText(
+            `Estado: ${this.player.state} | HP: ${this.player.health}/${this.player.maxHealth} | Atk: ${attackCooldown} | Cast: ${castCooldown}${restartHint}`
+        );
+    }
+
+    handlePlayerActionInputs (now)
+    {
+        if (this.player.state === 'dead')
+        {
+            if (Input.Keyboard.JustDown(this.keys.restart))
+            {
+                this.scene.restart();
+            }
+
+            return;
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.die))
+        {
+            this.killPlayer();
+            return;
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.hurt))
+        {
+            this.applyPlayerDamage(1);
+            return;
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.attack) && this.canStartPlayerAction(now, 'attack'))
+        {
+            this.startPlayerAction('attack', now);
+            return;
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.cast) && this.canStartPlayerAction(now, 'cast'))
+        {
+            this.startPlayerAction('cast', now);
+            return;
+        }
+
+        if (Input.Keyboard.JustDown(this.keys.taunt) && this.canStartPlayerAction(now, 'taunt'))
+        {
+            this.startPlayerAction('taunt', now);
+        }
+    }
+
+    updatePlayerMovement (now)
+    {
+        if (this.player.state === 'dead' || PLAYER_ACTION_STATES.has(this.player.state))
+        {
+            this.playerHitbox.body.setVelocity(0, 0);
+            return;
+        }
+
+        let moveX = 0;
+        let moveY = 0;
+
+        if (this.keys.left.isDown)
+        {
+            moveX -= 1;
+        }
+
+        if (this.keys.right.isDown)
+        {
+            moveX += 1;
+        }
+
+        if (this.keys.up.isDown)
+        {
+            moveY -= 1;
+        }
+
+        if (this.keys.down.isDown)
+        {
+            moveY += 1;
+        }
+
+        if (moveX !== 0 || moveY !== 0)
+        {
+            const length = Math.hypot(moveX, moveY);
+
+            this.playerHitbox.body.setVelocity(
+                (moveX / length) * PLAYER_SPEED,
+                (moveY / length) * PLAYER_SPEED
+            );
+
+            if (moveX !== 0)
+            {
+                this.player.facing = moveX < 0 ? -1 : 1;
+            }
+
+            this.player.idleBlinkAt = now + this.randomIdleBlinkDelay();
+            this.setPlayerState('walk');
+
+            return;
+        }
+
+        this.playerHitbox.body.setVelocity(0, 0);
+
+        if (this.player.state === 'walk')
+        {
+            this.setPlayerState('idle');
+        }
+
+        if (this.player.state === 'idle' && now >= this.player.idleBlinkAt)
+        {
+            this.setPlayerState('idle-blink');
+            this.player.idleBlinkAt = now + this.randomIdleBlinkDelay();
+        }
+    }
+
+    updatePlayerProjectiles (now)
+    {
+        for (let index = this.playerProjectiles.length - 1; index >= 0; index--)
+        {
+            const projectile = this.playerProjectiles[index];
+
+            if (!projectile.active)
+            {
+                this.playerProjectiles.splice(index, 1);
+                continue;
+            }
+
+            projectile.setDepth(projectile.y + 6);
+
+            if (
+                now >= projectile.expireAt ||
+                projectile.x < CAMERA_BOUNDS.x - 80 ||
+                projectile.x > CAMERA_BOUNDS.x + CAMERA_BOUNDS.width + 80
+            )
+            {
+                projectile.destroy();
+                this.playerProjectiles.splice(index, 1);
+            }
+        }
+    }
+
+    canStartPlayerAction (now, state)
+    {
+        if (PLAYER_ACTION_STATES.has(this.player.state))
+        {
+            return false;
+        }
+
+        if (state === 'attack' && now < this.player.nextAttackAt)
+        {
+            return false;
+        }
+
+        if (state === 'cast' && now < this.player.nextCastAt)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    startPlayerAction (state, now)
+    {
+        const token = ++this.player.actionToken;
+
+        this.playerHitbox.body.setVelocity(0, 0);
+        this.setPlayerState(state);
+
+        if (state === 'attack')
+        {
+            this.player.nextAttackAt = now + PLAYER_ATTACK_COOLDOWN;
+            this.time.delayedCall(160, () => {
+
+                if (this.isPlayerActionTokenActive(token, 'attack'))
+                {
+                    this.spawnAttackEffect();
+                }
+
+            });
+
+            return;
+        }
+
+        if (state === 'cast')
+        {
+            this.player.nextCastAt = now + PLAYER_CAST_COOLDOWN;
+            this.spawnCastChargeEffect();
+
+            this.time.delayedCall(320, () => {
+
+                if (this.isPlayerActionTokenActive(token, 'cast'))
+                {
+                    this.spawnCastProjectile(now);
+                }
+
+            });
+
+            return;
+        }
+
+        if (state === 'hurt')
+        {
+            this.flashPlayerDamage();
+        }
+    }
+
+    setPlayerState (state)
+    {
+        if (this.player.state === state)
+        {
+            if (state === 'idle' || state === 'walk')
+            {
+                this.playPlayerAnimationForState(state);
+            }
+
+            return;
+        }
+
+        this.player.state = state;
+        this.playPlayerAnimationForState(state);
+    }
+
+    playPlayerAnimationForState (state)
+    {
+        const animationKey = PLAYER_STATE_TO_ANIMATION[state];
+
+        if (!animationKey)
+        {
+            return;
+        }
+
+        if (this.playerSprite.anims.currentAnim?.key === animationKey)
+        {
+            return;
+        }
+
+        this.playerSprite.anims.play(animationKey, true);
+    }
+
+    handlePlayerAnimationComplete (animation)
+    {
+        if (animation.key === PLAYER_STATE_TO_ANIMATION.dead)
+        {
+            return;
+        }
+
+        if (animation.key === PLAYER_STATE_TO_ANIMATION['idle-blink'])
+        {
+            this.setPlayerState('idle');
+            return;
+        }
+
+        if (
+            animation.key === PLAYER_STATE_TO_ANIMATION.attack ||
+            animation.key === PLAYER_STATE_TO_ANIMATION.cast ||
+            animation.key === PLAYER_STATE_TO_ANIMATION.hurt ||
+            animation.key === PLAYER_STATE_TO_ANIMATION.taunt
+        )
+        {
+            this.setPlayerState('idle');
+            this.player.idleBlinkAt = this.time.now + this.randomIdleBlinkDelay();
+        }
+    }
+
+    applyPlayerDamage (damage)
+    {
+        if (this.player.state === 'dead' || this.time.now < this.player.invulnerableUntil)
+        {
+            return;
+        }
+
+        this.player.health = Math.max(0, this.player.health - damage);
+        this.player.invulnerableUntil = this.time.now + PLAYER_INVULNERABILITY_MS;
+
+        if (this.player.health <= 0)
+        {
+            this.killPlayer();
+            return;
+        }
+
+        this.startPlayerAction('hurt', this.time.now);
+    }
+
+    killPlayer ()
+    {
+        if (this.player.state === 'dead')
+        {
+            return;
+        }
+
+        this.player.health = 0;
+        this.playerHitbox.body.setVelocity(0, 0);
+        this.setPlayerState('dead');
+        this.cameras.main.shake(180, 0.0025);
+    }
+
+    flashPlayerDamage ()
+    {
+        this.playerSprite.setTint(0xffb4a2);
+
+        this.tweens.add({
+            targets: this.playerSprite,
+            alpha: 0.35,
+            duration: 70,
+            yoyo: true,
+            repeat: 5,
+            onComplete: () => {
+
+                if (!this.playerSprite.active)
+                {
+                    return;
+                }
+
+                this.playerSprite.clearTint();
+                this.playerSprite.setAlpha(1);
+
+            }
+        });
+    }
+
+    spawnAttackEffect ()
+    {
+        const feet = this.getPlayerFeetPosition();
+        const slash = this.add.rectangle(
+            feet.x + (this.player.facing * PLAYER_ATTACK_EFFECT_DISTANCE),
+            feet.y - 28,
+            60,
+            24,
+            0xffd37a,
+            0.5
+        )
+            .setDepth(this.playerSprite.depth + 1);
+
+        this.tweens.add({
+            targets: slash,
+            alpha: 0,
+            scaleX: 1.45,
+            scaleY: 0.8,
+            duration: 180,
+            onComplete: () => {
+
+                slash.destroy();
+
+            }
+        });
+    }
+
+    spawnCastChargeEffect ()
+    {
+        const feet = this.getPlayerFeetPosition();
+        const ring = this.add.circle(feet.x, feet.y - 34, 16, 0x93f7ff, 0.25)
+            .setDepth(this.playerSprite.depth + 1)
+            .setScale(0.35);
+
+        this.tweens.add({
+            targets: ring,
+            alpha: 0,
+            scaleX: 1.8,
+            scaleY: 1.8,
+            duration: 280,
+            onComplete: () => {
+
+                ring.destroy();
+
+            }
+        });
+    }
+
+    spawnCastProjectile ()
+    {
+        const feet = this.getPlayerFeetPosition();
+        const projectile = this.add.circle(
+            feet.x + (this.player.facing * PLAYER_PROJECTILE_OFFSET_X),
+            feet.y - PLAYER_PROJECTILE_OFFSET_Y,
+            10,
+            0x9bf6ff,
+            0.95
+        );
+
+        this.physics.add.existing(projectile);
+        projectile.body.setAllowGravity(false);
+        projectile.body.setVelocity(this.player.facing * PLAYER_PROJECTILE_SPEED, 0);
+        projectile.expireAt = this.time.now + PLAYER_PROJECTILE_LIFETIME;
+        projectile.setDepth(projectile.y + 6);
+
+        this.playerProjectiles.push(projectile);
+    }
+
+    isPlayerActionTokenActive (token, state)
+    {
+        return this.player.state === state && this.player.actionToken === token;
+    }
+
+    getPlayerFeetPosition ()
+    {
+        return {
+            x: this.playerHitbox.x,
+            y: this.playerHitbox.y + (PLAYER_HITBOX_HEIGHT / 2)
+        };
+    }
+
+    randomIdleBlinkDelay ()
+    {
+        return PhaserMath.Between(PLAYER_IDLE_BLINK_MIN_DELAY, PLAYER_IDLE_BLINK_MAX_DELAY);
+    }
+
+    formatCooldown (remainingMs)
+    {
+        if (remainingMs <= 0)
+        {
+            return 'pronto';
+        }
+
+        return `${(remainingMs / 1000).toFixed(1)}s`;
     }
 
     getPieceCellAtWorldPosition (x, y)

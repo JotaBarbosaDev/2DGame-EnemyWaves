@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { MAP_ASSETS } from '../data/mapAssets';
+import { PLAYER_ANIMATIONS } from '../data/playerAnimations';
 
 export class Preloader extends Scene
 {
@@ -37,12 +38,17 @@ export class Preloader extends Scene
             this.load.image(key, path);
         }
 
-        for (let frame = 0; frame < 10; frame++)
+        for (const animation of PLAYER_ANIMATIONS)
         {
-            const suffix = frame.toString().padStart(3, '0');
+            for (let frame = 0; frame < animation.frames; frame++)
+            {
+                const suffix = frame.toString().padStart(3, '0');
 
-            this.load.image(`player-idle-${frame}`, `player/Idle__${suffix}.png`);
-            this.load.image(`player-run-${frame}`, `player/Run__${suffix}.png`);
+                this.load.image(
+                    `${animation.key}-${frame}`,
+                    `player1/PNG/Wraith_01/PNG Sequences/${animation.folder}/${animation.filePrefix}${suffix}.png`
+                );
+            }
         }
     }
 
