@@ -44,6 +44,10 @@ export class Preloader extends Scene
     {
         this.load.setPath('assets');
 
+        this.load.audio('sfx-attack', 'audio/attack.wav');
+        this.load.audio('sfx-pickup', 'audio/pickup.wav');
+        this.load.audio('sfx-gameover', 'audio/gameover.wav');
+
         for (const [key, path] of MAP_ASSETS)
         {
             this.load.image(key, path);

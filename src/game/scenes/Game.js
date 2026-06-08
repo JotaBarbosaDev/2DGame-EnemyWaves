@@ -101,6 +101,7 @@ const WAVE_BASE_ENEMY_COUNT = 4;
 const WAVE_ENEMY_GROWTH = 2;
 const WAVE_CONCURRENT_BASE = 3;
 const WAVE_CONCURRENT_MAX = 8;
+const FINAL_WAVE = 10;
 const ESSENCE_DROP_BASE_CHANCE = 0.34;
 const ESSENCE_DROP_WAVE_BONUS = 0.015;
 const ESSENCE_DROP_MAGNET_SPEED = 420;
@@ -133,12 +134,12 @@ export class Game extends Scene
     create ()
     {
         this.settings = this.registry.get('settings') ?? { ...DEFAULT_GAME_SETTINGS };
-        this.devMode = Boolean(this.settings.devMode);
         this.language = getLanguage(this.settings);
-        this.cameras.main.setBackgroundColor(MAP_BACKGROUND_COLOR);
+        this.devMode = Boolean(this.settings.devMode);
 
         applyDocumentLocalization(this.language);
 
+        this.cameras.main.setBackgroundColor(MAP_BACKGROUND_COLOR);
         this.physics.world.setBounds(PLAY_AREA.x, PLAY_AREA.y, PLAY_AREA.width, PLAY_AREA.height);
         this.staticZones = [];
         this.playerProjectiles = [];
@@ -162,7 +163,6 @@ export class Game extends Scene
         this.cameras.main.setZoom(0.88);
     }
 
-    update ()
     translate (key, params)
     {
         return t(this.language, key, params);
@@ -216,6 +216,7 @@ export class Game extends Scene
         this.scene.restart();
     }
 
+    update ()
     {
         if (!this.playerHitbox || !this.playerSprite)
         {
@@ -223,6 +224,24 @@ export class Game extends Scene
         }
 
         const now = this.time.now;
+
+        if (Input.Keyboard.JustDown(this.keys.restart))
+        {
+            this.restartRun();
+            return;
+        }
+
+        if (this.player.gameOverQueued)
+        {
+            this.syncPlayerVisual();
+            if (this.devMode)
+            {
+                this.updateGridCursor();
+            }
+            this.updateHud(now);
+            this.refreshEvolutionPanel();
+            return;
+        }
 
         this.updatePlayerAim();
         this.handleProgressionInputs();
@@ -1148,6 +1167,7 @@ export class Game extends Scene
     collectEssenceDrop (drop, index)
     {
         this.progression.essence += drop.value;
+        this.playSfx('sfx-pickup', { volume: 0.22 });
 
         const text = this.add.text(drop.orb.x, drop.orb.y - 18, this.translate('pickup.essence', {
             value: drop.value
@@ -1169,7 +1189,6 @@ export class Game extends Scene
             y: text.y - 22,
             onComplete: () => {
 
-        this.playSfx('sfx-pickup', { volume: 0.22 });
                 text.destroy();
 
             }
@@ -1277,7 +1296,7 @@ export class Game extends Scene
 
     canEvolvePlayer ()
     {
-        const nextCharacter = getNextPlayerCharacter(this.player.character.assetId);
+        const nextCharacter = this.getPresentedCharacter(getNextPlayerCharacter(this.player.character.assetId));
 
         return Boolean(nextCharacter && this.progression.totalSpent >= nextCharacter.unlockSpent);
     }
@@ -2090,10 +2109,20 @@ export class Game extends Scene
 
         this.wave.active = false;
         this.wave.clearedAt = now;
-        this.wave.upcomingAt = now + WAVE_BREAK_DURATION;
         this.score += PLAYER_SCORE_PER_WAVE_CLEAR + (this.wave.current * 25);
 
-        this.showWaveBanner(`Wave ${this.wave.current} limpa`);
+        if (this.wave.current >= FINAL_WAVE)
+        {
+            this.wave.upcomingAt = Number.POSITIVE_INFINITY;
+            this.winGame();
+            return;
+        }
+
+        this.wave.upcomingAt = now + WAVE_BREAK_DURATION;
+
+        this.showWaveBanner(this.translate('banner.waveCleared', {
+            wave: this.wave.current
+        }));
     }
 
     showWaveBanner (label)
@@ -2549,9 +2578,25 @@ export class Game extends Scene
         this.playerHitbox.body.setVelocity(0, 0);
         this.setPlayerState('dead');
         this.cameras.main.shake(180, 0.0025);
+        this.playSfx('sfx-gameover', { volume: 0.28 });
     }
 
-    goToGameOver ()
+    winGame ()
+    {
+        if (this.player.gameOverQueued)
+        {
+            return;
+        }
+
+        this.wave.active = false;
+        this.wave.upcomingAt = Number.POSITIVE_INFINITY;
+        this.progression.menuOpen = false;
+        this.playerHitbox.body.setVelocity(0, 0);
+        this.showWaveBanner(this.translate('banner.victory'));
+        this.queueResults('win', 700);
+    }
+
+    queueResults (result, delay = 120)
     {
         if (this.player.gameOverQueued)
         {
@@ -2559,16 +2604,22 @@ export class Game extends Scene
         }
 
         this.player.gameOverQueued = true;
-        this.time.delayedCall(120, () => {
+        this.time.delayedCall(delay, () => {
 
             this.scene.start('GameOver', {
-                character: this.player.character.label,
+                characterAssetId: this.player.character.assetId,
+                result,
                 spent: this.progression.totalSpent,
                 score: this.score,
                 wave: this.wave.current
             });
 
         });
+    }
+
+    goToGameOver ()
+    {
+        this.queueResults('lose');
     }
 
     flashPlayerDamage ()
@@ -2601,6 +2652,9 @@ export class Game extends Scene
         const aim = this.getPlayerAimVector();
         const attackX = feet.x + (aim.x * this.player.stats.meleeRange);
         const attackY = feet.y - 30 + (aim.y * 26);
+
+        this.playSfx('sfx-attack', { volume: 0.14 });
+
         const slash = this.add.rectangle(
             attackX,
             attackY,
