@@ -1,157 +1,121 @@
-Player Asset1: https://erisesra.itch.io/character-templates-pack
-Player Asset2 Knight: https://erisesra.itch.io/character-templates-pack
-Player Asset3: [text](https://oboropixel.itch.io/characters-animations-asset-pack)
+# 2D Enemy Waves
 
-# Phaser Vite Template
+## 1. Elementos do grupo
+- Nome: [PREENCHER]
+- Numero: [PREENCHER]
 
-This is a Phaser 4 project template that uses Vite for bundling. It supports hot-reloading for quick development workflow and includes scripts to generate production-ready builds.
+## 2. Tecnologias e dependencias
+- Phaser: `3.90.0`
+- Integracao do Phaser: `npm`
+- Bundler: `Vite`
+- Scripts principais:
+  - `npm run dev`
+  - `npm run build`
+  - `npm run dev-nolog`
+  - `npm run build-nolog`
 
-**[This Template is also available as a TypeScript version.](https://github.com/phaserjs/template-vite-ts)**
+## 3. Descricao do jogo
+`2D Enemy Waves` e um jogo 2D de acao e sobrevivencia em arena. O jogador controla uma Wraith, enfrenta ondas sucessivas de zombies, recolhe essencia e investe pontos em upgrades para sobreviver mais tempo e evoluir a personagem.
 
-### Versions
+O ciclo principal do jogo e: menu -> jogo -> combate por waves -> recolha de essencia -> upgrades/evolucao -> derrota ou vitoria. A run termina em `Game Over` quando a vida chega a zero, ou em `Vitoria` ao limpar a wave 10.
 
-This template has been updated for:
+## 4. Genero, objetivo, regras e funcionalidades
+- Genero: acao / sobrevivencia em arena 2D
+- Objetivo: sobreviver as waves, derrotar inimigos, melhorar a build e chegar ao fim da run
+- Regras principais:
+  - cada inimigo derrotado pode largar essencia;
+  - a essencia permite investir nos upgrades da build;
+  - a personagem evolui ao atingir certos patamares de pontos gastos;
+  - morrer termina a run;
+  - limpar a wave 10 ativa a vitoria.
+- Funcionalidades implementadas:
+  - movimento do jogador;
+  - ataque melee e cast a distancia;
+  - colisao com o mapa via Arcade Physics;
+  - HUD com vida, score, wave, inimigos e progresso da build;
+  - menu principal;
+  - menu de build/evolucao;
+  - `Game Over` e `Vitoria`;
+  - reinicio rapido da run;
+  - suporte PT/EN;
+  - efeitos sonoros de combate, recolha e fim de jogo.
 
-- [Phaser 4.0.0](https://github.com/phaserjs/phaser)
-- [Vite 6.3.1](https://github.com/vitejs/vite)
+## 5. Controlos
+- `WASD`: mover
+- `J`, `SPACE`, `K` ou clique esquerdo: atacar
+- `E` ou clique direito: cast / habilidade
+- `U`: abrir / fechar menu de build
+- `N`: evoluir a personagem quando disponivel
+- `1-6`: investir pontos nos upgrades
+- `R`: reiniciar a run
+- `ESC`: fechar o menu de build
 
-![screenshot](screenshot.png)
-
-## Requirements
-
-[Node.js](https://nodejs.org) is required to install dependencies and run scripts via `npm`.
-
-## Available Commands
-
-| Command | Description |
-|---------|-------------|
-| `npm install` | Install project dependencies |
-| `npm run dev` | Launch a development web server |
-| `npm run build` | Create a production build in the `dist` folder |
-| `npm run dev-nolog` | Launch a development web server without sending anonymous data (see "About log.js" below) |
-| `npm run build-nolog` | Create a production build in the `dist` folder without sending anonymous data (see "About log.js" below) |
-
-
-## Writing Code
-
-After cloning the repo, run `npm install` from your project directory. Then, you can start the local development server by running `npm run dev`.
-
-The local development server runs on `http://localhost:8080` by default. Please see the Vite documentation if you wish to change this, or add SSL support.
-
-Once the server is running you can edit any of the files in the `src` folder. Vite will automatically recompile your code and then reload the browser.
-
-## Template Project Structure
-
-We have provided a default project structure to get you started. This is as follows:
-
-| Path                         | Description                                                |
-|------------------------------|------------------------------------------------------------|
-| `index.html`                 | A basic HTML page to contain the game.                     |
-| `public/assets`              | Game sprites, audio, etc. Served directly at runtime.      |
-| `public/style.css`           | Global layout styles.                                      |
-| `src/main.js`                | Application bootstrap.                                     |
-| `src/game`                   | Folder containing the game code.                           |
-| `src/game/main.js`           | Game entry point: configures and starts the game.          |
-| `src/game/scenes`            | Folder with all Phaser game scenes.                        | 
-
-## Handling Assets
-
-Vite supports loading assets via JavaScript module `import` statements.
-
-This template provides support for both embedding assets and also loading them from a static folder. To embed an asset, you can import it at the top of the JavaScript file you are using it in:
-
-```js
-import logoImg from './assets/logo.png'
-```
-
-To load static files such as audio files, videos, etc place them into the `public/assets` folder. Then you can use this path in the Loader calls within Phaser:
-
-```js
-preload ()
-{
-    //  This is an example of an imported bundled image.
-    //  Remember to import it at the top of this file
-    this.load.image('logo', logoImg);
-
-    //  This is an example of loading a static image
-    //  from the public/assets folder:
-    this.load.image('background', 'assets/bg.png');
-}
-```
-
-When you issue the `npm run build` command, all static assets are automatically copied to the `dist/assets` folder.
-
-## Deploying to Production
-
-After you run the `npm run build` command, your code will be built into a single bundle and saved to the `dist` folder, along with any other assets your project imported, or stored in the public assets folder.
-
-In order to deploy your game, you will need to upload *all* of the contents of the `dist` folder to a public facing web server.
-
-## Customizing the Template
-
-### Vite
-
-If you want to customize your build, such as adding plugin (i.e. for loading CSS or fonts), you can modify the `vite/config.*.mjs` file for cross-project changes, or you can modify and/or create new configuration files and target them in specific npm tasks inside of `package.json`. Please see the [Vite documentation](https://vitejs.dev/) for more information.
-
-## About log.js
-
-If you inspect our node scripts you will see there is a file called `log.js`. This file makes a single silent API call to a domain called `gryzor.co`. This domain is owned by Phaser Studio Inc. The domain name is a homage to one of our favorite retro games.
-
-We send the following 3 pieces of data to this API: The name of the template being used (vue, react, etc). If the build was 'dev' or 'prod' and finally the version of Phaser being used.
-
-At no point is any personal data collected or sent. We don't know about your project files, device, browser or anything else. Feel free to inspect the `log.js` file to confirm this.
-
-Why do we do this? Because being open source means we have no visible metrics about which of our templates are being used. We work hard to maintain a large and diverse set of templates for Phaser developers and this is our small anonymous way to determine if that work is actually paying off, or not. In short, it helps us ensure we're building the tools for you.
-
-However, if you don't want to send any data, you can use these commands instead:
-
-Dev:
-
+## 6. Como executar
+### Desenvolvimento
 ```bash
-npm run dev-nolog
+npm install
+npm run dev
 ```
 
-Build:
+O Vite arranca por omissao em `http://localhost:8080`.
 
+### Build de producao
 ```bash
-npm run build-nolog
+npm run build
 ```
 
-Or, to disable the log entirely, simply delete the file `log.js` and remove the call to it in the `scripts` section of `package.json`:
+O output final fica na pasta `dist/`.
 
-Before:
+## 7. Aspetos multimedia
+### Imagens
+- **Mapa**: tiles do pack `Prototype Pack (2.3)` de Kenney, com licenca `CC0`, conforme `public/assets/map/License.txt`.
+- **Inimigos**: sprites de zombies provenientes de packs com licenca Craftpix, conforme `public/assets/enemy/License.txt`.
+- **Jogador**: sprites `Wraith` provenientes de pack com licenca Craftpix, conforme `public/assets/player1/TXT/license.txt`.
 
-```json
-"scripts": {
-    "dev": "node log.js dev & dev-template-script",
-    "build": "node log.js build & build-template-script"
-},
-```
+### Formatos e tamanhos usados em runtime
+- Background principal: `PNG`, `1024x768`
+- Tile de piso do mapa: `PNG`, `256x512`
+- Frame do jogador `Wraith_01_Idle_000`: `PNG`, `520x420`
+- Frame do inimigo `Zombie1 Idle1`: `PNG`, `222x372`
 
-After:
+### Justificacao visual
+- Os sprites de origem sao maiores do que o tamanho final em jogo, o que permite reduzi-los em Phaser sem perder legibilidade.
+- O mapa usa poucas pecas do tileset para manter o preload simples e coerente com a arena.
 
-```json
-"scripts": {
-    "dev": "dev-template-script",
-    "build": "build-template-script"
-},
-```
+### Audio
+- Os efeitos sonoros foram gerados especificamente para este projeto e guardados em `public/assets/audio/`.
+- Formato: `WAV`
+- Ficheiros usados:
+  - `attack.wav` - ~0.09s - ~4 KB
+  - `pickup.wav` - ~0.12s - ~5 KB
+  - `gameover.wav` - ~0.26s - ~11 KB
+- Eventos com audio:
+  - ataque melee;
+  - recolha de essencia;
+  - morte / fim da run.
 
-Either of these will stop `log.js` from running. If you do decide to do this, please could you at least join our Discord and tell us which template you're using! Or send us a quick email. Either will be super-helpful, thank you.
+### Otimizacao e limpeza de assets
+- Foram removidos assets nao usados em runtime, incluindo ficheiros `.ai`, `.eps`, `.unitypackage`, `.zip`, `.url`, sprites de teste e partes vetoriais nao carregadas pelo jogo.
+- A pasta `public/assets` passou de uma colecao de trabalho bruta para um conjunto focado nos ficheiros realmente carregados pelo jogo.
 
-## Join the Phaser Community!
+## 8. Estrutura do projeto
+- `src/game/main.js`: configuracao do Phaser
+- `src/game/scenes/Boot.js`: inicializacao e settings
+- `src/game/scenes/Preloader.js`: preload de imagens e audio
+- `src/game/scenes/MainMenu.js`: menu principal e escolha de idioma
+- `src/game/scenes/Game.js`: gameplay principal, HUD, waves, inimigos e upgrades
+- `src/game/scenes/GameOver.js`: ecra final de derrota / vitoria
+- `src/game/data/`: personagens, animacoes, mapa, upgrades, inimigos e settings
+- `src/game/i18n/`: traducoes PT/EN
 
-We love to see what developers like you create with Phaser! It really motivates us to keep improving. So please join our community and show-off your work 😄
+## 9. Repositorio e versao entregue
+- URL do repositorio: `https://github.com/JotaBarbosaDev/2DGame-EnemyWaves`
+- Commit hash entregue: commit apontado pela tag `1.0` (obter com `git rev-list -n 1 1.0`)
+- Tag: `1.0`
 
-**Visit:** The [Phaser website](https://phaser.io) and follow on [Phaser Twitter](https://twitter.com/phaser_)<br />
-**Play:** Some of the amazing games [#madewithphaser](https://twitter.com/search?q=%23madewithphaser&src=typed_query&f=live)<br />
-**Learn:** [API Docs](https://newdocs.phaser.io), [Support Forum](https://phaser.discourse.group/) and [StackOverflow](https://stackoverflow.com/questions/tagged/phaser-framework)<br />
-**Discord:** Join us on [Discord](https://discord.gg/phaser)<br />
-**Code:** 2000+ [Examples](https://labs.phaser.io)<br />
-**Read:** The [Phaser World](https://phaser.io/community/newsletter) Newsletter<br />
+## 10. Screenshot
+![Screenshot do jogo](screenshot.png)
 
-Created by [Phaser Studio](mailto:support@phaser.io). Powered by coffee, anime, pixels and love.
-
-The Phaser logo and characters are &copy; 2011 - 2025 Phaser Studio Inc.
-
-All rights reserved.
+## 11. Lacunas conhecidas / roadmap
+- Falta preencher os dados finais do grupo no README e no ficheiro de entrega.
+- O audio foi mantido minimalista para cumprir o requisito com baixo impacto no tamanho final.
