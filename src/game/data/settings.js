@@ -1,5 +1,6 @@
 export const DEFAULT_GAME_SETTINGS = Object.freeze({
-    devMode: false
+    devMode: false,
+    language: 'pt'
 });
 
 const GAME_SETTINGS_STORAGE_KEY = 'enemy-waves-settings';
@@ -7,7 +8,8 @@ const GAME_SETTINGS_STORAGE_KEY = 'enemy-waves-settings';
 export function normalizeGameSettings (settings)
 {
     return {
-        devMode: Boolean(settings?.devMode)
+        devMode: Boolean(settings?.devMode),
+        language: settings?.language === 'en' ? 'en' : 'pt'
     };
 }
 

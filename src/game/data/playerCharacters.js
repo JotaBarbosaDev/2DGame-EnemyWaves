@@ -6,13 +6,13 @@ export const PLAYER_CHARACTERS = [
         castCooldown: 900,
         castDamage: 2,
         castTint: 0x9bf6ff,
-        label: 'Wraith I',
+        labelKey: 'characters.wraith1.name',
         maxHealth: 5,
         projectileSpeed: 360,
         speed: 240,
-        traits: [
-            'Soul Scavenger: mais chance de cair essencia e maior raio de recolha.',
-            'Light Veil: mais velocidade base e +1 vida base.'
+        traitKeys: [
+            'characters.wraith1.trait1',
+            'characters.wraith1.trait2'
         ],
         unlockSpent: 0,
         modifiers: {
@@ -29,13 +29,13 @@ export const PLAYER_CHARACTERS = [
         castCooldown: 760,
         castDamage: 3,
         castTint: 0xb8f7a1,
-        label: 'Wraith II',
+        labelKey: 'characters.wraith2.name',
         maxHealth: 7,
         projectileSpeed: 400,
         speed: 258,
-        traits: [
-            'Rending Claws: melee bate mais forte e com mais alcance.',
-            'Battle Tempo: a cadencia rende mais e o ataque sai mais rapido.'
+        traitKeys: [
+            'characters.wraith2.trait1',
+            'characters.wraith2.trait2'
         ],
         unlockSpent: 10,
         modifiers: {
@@ -52,13 +52,13 @@ export const PLAYER_CHARACTERS = [
         castCooldown: 620,
         castDamage: 4,
         castTint: 0xffd38a,
-        label: 'Wraith III',
+        labelKey: 'characters.wraith3.name',
         maxHealth: 9,
         projectileSpeed: 440,
         speed: 278,
-        traits: [
-            'Void Channel: cast mais forte, mais rapido e com projeteis maiores.',
-            'Soul Dominion: a essencia rende mais e o score escala melhor.'
+        traitKeys: [
+            'characters.wraith3.trait1',
+            'characters.wraith3.trait2'
         ],
         unlockSpent: 20,
         modifiers: {

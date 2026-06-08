@@ -1,0 +1,128 @@
+{
+  "meta": {
+    "title": "2D Enemy Waves"
+  },
+  "menu": {
+    "title": "2D Enemy Waves",
+    "subtitle": "Sobrevive, luta e limpa o mapa",
+    "controls": "WASD mover | Space/J/K/LMB atacar | E/RMB cast | U build | 1-6 gastar | R reiniciar",
+    "start": "Comecar",
+    "settings": "Definicoes",
+    "language": "Idioma",
+    "devMode": "Modo Dev {state}",
+    "devModeHintOn": "Mostra grelha, celulas e marcadores de debug",
+    "devModeHintOff": "Esconde grelha e coordenadas do mapa",
+    "on": "ON",
+    "off": "OFF"
+  },
+  "gameover": {
+    "titleLose": "Game Over",
+    "titleWin": "Vitoria",
+    "subtitleLose": "Foste derrotado. Escolhe o proximo passo.",
+    "subtitleWin": "Sobreviveste a todas as waves. Run concluida.",
+    "waveScore": "Wave alcancada: {wave} | Score: {score}",
+    "finalForm": "Forma final: {character}",
+    "buildSpent": "Build gasta: {spent}/{total}",
+    "restart": "Reiniciar",
+    "home": "Menu"
+  },
+  "hud": {
+    "playerStatus": "Estado: {state}   HP: {health}/{maxHealth}",
+    "cooldowns": "Ataque: {attack}   Cast: {cast}   Regen: {regen}",
+    "wave": "Wave {wave} | {state}",
+    "scoreEssence": "Score: {score} | Essencia: {essence}",
+    "enemies": "Vivos: {enemies} | Por surgir: {remaining}",
+    "progression": "Build: {spent}/{total} | Evolucao: {evolution}",
+    "health": "Vida {health}/{maxHealth}",
+    "controls": "WASD mover | Space/J/K/LMB atacar | E/RMB cast | U build | 1-6 gastar | R reiniciar",
+    "outsideGrid": "Fora da matriz",
+    "cellStatus": "Celula: {piece} | Sub: {walk} | Matriz: {walkable} | Camada: {layer}",
+    "waveStateActive": "ativa",
+    "waveStatePrepare": "prepara",
+    "final": "final",
+    "regenOff": "off",
+    "walkableTrue": "1",
+    "walkableFalse": "0",
+    "layerBehind": "tras",
+    "layerFront": "frente",
+    "ready": "pronto"
+  },
+  "build": {
+    "title": "{character} Build",
+    "summary": "Pontos gastos: {spent}/{total} | Proxima forma: {next}",
+    "points": "{points} pts",
+    "currentForm": "Forma Atual",
+    "finalForm": "Forma final",
+    "traitsTitle": "Passivas atuais",
+    "hint": "U fechar | 1-6 investir | N evoluir",
+    "ready": "Pronto: {character}",
+    "next": "Proxima: {character}",
+    "evolveReady": "N para evoluir para {character}",
+    "finalInProgress": "Build final em curso: fecha os 30 pontos para maximizar a run",
+    "pointsMissing": "Faltam {points} pontos gastos para evoluir"
+  },
+  "banner": {
+    "buildComplete": "Build completa",
+    "readyToEvolve": "{character} pronto | N para evoluir",
+    "ascends": "{character} ascende",
+    "wave": "Wave {wave}",
+    "waveCleared": "Wave {wave} limpa",
+    "victory": "Vitoria"
+  },
+  "pickup": {
+    "essence": "+{value} essencia"
+  },
+  "states": {
+    "idle": "pronto",
+    "idleBlink": "alerta",
+    "walk": "mover",
+    "attack": "ataque",
+    "cast": "cast",
+    "hurt": "ferido",
+    "taunt": "provocar",
+    "dead": "morto"
+  },
+  "characters": {
+    "wraith1": {
+      "name": "Wraith I",
+      "trait1": "Soul Scavenger: mais chance de cair essencia e maior raio de recolha.",
+      "trait2": "Light Veil: mais velocidade base e +1 vida base."
+    },
+    "wraith2": {
+      "name": "Wraith II",
+      "trait1": "Rending Claws: melee bate mais forte e com mais alcance.",
+      "trait2": "Battle Tempo: a cadencia rende mais e o ataque sai mais rapido."
+    },
+    "wraith3": {
+      "name": "Wraith III",
+      "trait1": "Void Channel: cast mais forte, mais rapido e com projeteis maiores.",
+      "trait2": "Soul Dominion: a essencia rende mais e o score escala melhor."
+    }
+  },
+  "upgrades": {
+    "mobility": {
+      "label": "Mobilidade",
+      "description": "+ velocidade de movimento e recolha de essencia"
+    },
+    "assault": {
+      "label": "Ferocidade",
+      "description": "+ dano melee e alcance do golpe"
+    },
+    "haste": {
+      "label": "Cadencia",
+      "description": "+ velocidade de ataque e de cast"
+    },
+    "arcana": {
+      "label": "Arcana",
+      "description": "+ dano do cast, raio e velocidade do projetil"
+    },
+    "fortitude": {
+      "label": "Fortitude",
+      "description": "+ vida maxima"
+    },
+    "regeneration": {
+      "label": "Regeneracao",
+      "description": "+ regeneracao e reduz atraso apos dano"
+    }
+  }
+}

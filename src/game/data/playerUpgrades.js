@@ -3,50 +3,50 @@ export const PLAYER_TOTAL_UPGRADE_POINTS = 30;
 export const PLAYER_UPGRADES = [
     {
         color: 0x38bdf8,
-        description: '+ velocidade de movimento e recolha de essencia',
+        descriptionKey: 'upgrades.mobility.description',
         id: 'mobility',
         key: '1',
-        label: 'Mobilidade',
+        labelKey: 'upgrades.mobility.label',
         maxLevel: 10
     },
     {
         color: 0xfb7185,
-        description: '+ dano melee e alcance do golpe',
+        descriptionKey: 'upgrades.assault.description',
         id: 'assault',
         key: '2',
-        label: 'Ferocidade',
+        labelKey: 'upgrades.assault.label',
         maxLevel: 10
     },
     {
         color: 0xf59e0b,
-        description: '+ velocidade de ataque e de cast',
+        descriptionKey: 'upgrades.haste.description',
         id: 'haste',
         key: '3',
-        label: 'Cadencia',
+        labelKey: 'upgrades.haste.label',
         maxLevel: 10
     },
     {
         color: 0xa78bfa,
-        description: '+ dano do cast, raio e velocidade do projetil',
+        descriptionKey: 'upgrades.arcana.description',
         id: 'arcana',
         key: '4',
-        label: 'Arcana',
+        labelKey: 'upgrades.arcana.label',
         maxLevel: 10
     },
     {
         color: 0x4ade80,
-        description: '+ vida maxima',
+        descriptionKey: 'upgrades.fortitude.description',
         id: 'fortitude',
         key: '5',
-        label: 'Fortitude',
+        labelKey: 'upgrades.fortitude.label',
         maxLevel: 10
     },
     {
         color: 0x22c55e,
-        description: '+ regeneracao e reduz atraso apos dano',
+        descriptionKey: 'upgrades.regeneration.description',
         id: 'regeneration',
         key: '6',
-        label: 'Regeneracao',
+        labelKey: 'upgrades.regeneration.label',
         maxLevel: 10
     }
 ];

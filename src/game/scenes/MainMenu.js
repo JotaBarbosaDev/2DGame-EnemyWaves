@@ -4,6 +4,11 @@ import {
     loadGameSettings,
     saveGameSettings
 } from '../data/settings';
+import {
+    applyDocumentLocalization,
+    getLanguage,
+    t
+} from '../i18n';
 
 export class MainMenu extends Scene
 {
@@ -15,11 +20,15 @@ export class MainMenu extends Scene
     create ()
     {
         this.settings = this.registry.get('settings') ?? loadGameSettings() ?? { ...DEFAULT_GAME_SETTINGS };
+        this.language = getLanguage(this.settings);
+
+        applyDocumentLocalization(this.language);
+
         this.cameras.main.setBackgroundColor(0x120f18);
 
         this.add.image(512, 384, 'background').setAlpha(0.28);
 
-        this.add.text(512, 220, '2D Enemy Waves', {
+        this.titleText = this.add.text(512, 220, '', {
             fontFamily: 'Arial Black',
             fontSize: 56,
             color: '#fff7ed',
@@ -27,7 +36,7 @@ export class MainMenu extends Scene
             strokeThickness: 10
         }).setOrigin(0.5);
 
-        this.add.text(512, 292, 'Sobrevive, luta e limpa o mapa', {
+        this.subtitleText = this.add.text(512, 292, '', {
             fontFamily: 'Courier New',
             fontSize: 24,
             color: '#fde68a',
@@ -35,19 +44,20 @@ export class MainMenu extends Scene
             strokeThickness: 6
         }).setOrigin(0.5);
 
-        this.add.text(512, 356, 'WASD mover | Space/J/K/LMB atacar | E/RMB cast | U build | 1-6 gastar', {
+        this.controlsText = this.add.text(512, 356, '', {
             fontFamily: 'Courier New',
-            fontSize: 20,
+            fontSize: 18,
             color: '#f8fafc',
             stroke: '#1f2937',
-            strokeThickness: 5
+            strokeThickness: 5,
+            wordWrap: { width: 860 }
         }).setOrigin(0.5);
 
-        const startButton = this.add.rectangle(512, 450, 260, 76, 0x2f855a, 0.96)
+        this.startButton = this.add.rectangle(512, 450, 260, 76, 0x2f855a, 0.96)
             .setStrokeStyle(4, 0xd1fae5, 1)
             .setInteractive({ useHandCursor: true });
 
-        this.add.text(512, 450, 'Comecar', {
+        this.startButtonLabel = this.add.text(512, 450, '', {
             fontFamily: 'Arial Black',
             fontSize: 30,
             color: '#f0fdf4',
@@ -55,7 +65,7 @@ export class MainMenu extends Scene
             strokeThickness: 6
         }).setOrigin(0.5);
 
-        this.add.text(512, 520, 'Settings', {
+        this.settingsTitleText = this.add.text(512, 520, '', {
             fontFamily: 'Arial Black',
             fontSize: 24,
             color: '#dbeafe',
@@ -83,21 +93,53 @@ export class MainMenu extends Scene
             strokeThickness: 4
         }).setOrigin(0.5);
 
-        this.refreshSettingsUi();
+        this.languageTitleText = this.add.text(160, 554, '', {
+            fontFamily: 'Arial Black',
+            fontSize: 20,
+            color: '#fde68a',
+            stroke: '#1f2937',
+            strokeThickness: 5
+        }).setOrigin(0.5);
 
-        startButton.on('pointerover', () => {
+        this.ptButton = this.add.rectangle(108, 600, 88, 54, 0x1f2937, 0.94)
+            .setStrokeStyle(3, 0xcbd5e1, 0.8)
+            .setInteractive({ useHandCursor: true });
 
-            startButton.setFillStyle(0x38a169, 1);
+        this.ptLabel = this.add.text(108, 600, 'PT', {
+            fontFamily: 'Arial Black',
+            fontSize: 24,
+            color: '#eff6ff',
+            stroke: '#0f1720',
+            strokeThickness: 5
+        }).setOrigin(0.5);
+
+        this.enButton = this.add.rectangle(212, 600, 88, 54, 0x1f2937, 0.94)
+            .setStrokeStyle(3, 0xcbd5e1, 0.8)
+            .setInteractive({ useHandCursor: true });
+
+        this.enLabel = this.add.text(212, 600, 'EN', {
+            fontFamily: 'Arial Black',
+            fontSize: 24,
+            color: '#eff6ff',
+            stroke: '#0f1720',
+            strokeThickness: 5
+        }).setOrigin(0.5);
+
+        this.refreshMenuUi();
+
+        this.startButton.on('pointerover', () => {
+
+            this.startButton.setFillStyle(0x38a169, 1);
 
         });
 
-        startButton.on('pointerout', () => {
+        this.startButton.on('pointerout', () => {
 
-            startButton.setFillStyle(0x2f855a, 0.96);
+            this.startButton.setFillStyle(0x2f855a, 0.96);
 
         });
 
-        startButton.on('pointerdown', () => {
+        this.startButton.on('pointerdown', () => {
 
             this.scene.start('Game');
 
@@ -125,15 +167,59 @@ export class MainMenu extends Scene
             this.refreshSettingsUi();
 
         });
+
+        this.ptButton.on('pointerdown', () => this.changeLanguage('pt'));
+        this.enButton.on('pointerdown', () => this.changeLanguage('en'));
+    }
+
+    translate (key, params)
+    {
+        return t(this.language, key, params);
+    }
+
+    changeLanguage (language)
+    {
+        this.settings = saveGameSettings({
+            ...this.settings,
+            language
+        });
+        this.registry.set('settings', this.settings);
+        this.language = getLanguage(this.settings);
+
+        applyDocumentLocalization(this.language);
+        this.refreshMenuUi();
+    }
+
+    refreshMenuUi ()
+    {
+        this.titleText.setText(this.translate('menu.title'));
+        this.subtitleText.setText(this.translate('menu.subtitle'));
+        this.controlsText.setText(this.translate('menu.controls'));
+        this.startButtonLabel.setText(this.translate('menu.start'));
+        this.settingsTitleText.setText(this.translate('menu.settings'));
+        this.languageTitleText.setText(this.translate('menu.language'));
+        this.refreshSettingsUi();
+        this.refreshLanguageUi();
     }
 
     refreshSettingsUi ()
     {
         const enabled = Boolean(this.settings?.devMode);
+        const stateLabel = this.translate(enabled ? 'menu.on' : 'menu.off');
 
         this.devModeButton.setFillStyle(enabled ? 0x1d4ed8 : 0x1f2937, 0.96);
         this.devModeButton.setStrokeStyle(4, enabled ? 0xdbeafe : 0xcbd5e1, 1);
-        this.devModeLabel.setText(`Dev Mode ${enabled ? 'ON' : 'OFF'}`);
-        this.devModeHint.setText(enabled ? 'Mostra grelha, celulas e marcadores de debug' : 'Esconde grelha e coordenadas do mapa');
+        this.devModeLabel.setText(this.translate('menu.devMode', { state: stateLabel }));
+        this.devModeHint.setText(this.translate(enabled ? 'menu.devModeHintOn' : 'menu.devModeHintOff'));
+    }
+
+    refreshLanguageUi ()
+    {
+        const isPt = this.language === 'pt';
+
+        this.ptButton.setFillStyle(isPt ? 0x2f855a : 0x1f2937, 0.94);
+        this.ptButton.setStrokeStyle(3, isPt ? 0xd1fae5 : 0xcbd5e1, 0.9);
+        this.enButton.setFillStyle(isPt ? 0x1f2937 : 0x1d4ed8, 0.94);
+        this.enButton.setStrokeStyle(3, isPt ? 0xcbd5e1 : 0xdbeafe, 0.9);
     }
 }

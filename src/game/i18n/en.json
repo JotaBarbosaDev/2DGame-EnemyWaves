@@ -1,0 +1,128 @@
+{
+  "meta": {
+    "title": "2D Enemy Waves"
+  },
+  "menu": {
+    "title": "2D Enemy Waves",
+    "subtitle": "Survive, fight and clear the map",
+    "controls": "WASD move | Space/J/K/LMB attack | E/RMB cast | U build | 1-6 spend | R restart",
+    "start": "Start",
+    "settings": "Settings",
+    "language": "Language",
+    "devMode": "Dev Mode {state}",
+    "devModeHintOn": "Shows grid, cells and debug markers",
+    "devModeHintOff": "Hides grid and map coordinates",
+    "on": "ON",
+    "off": "OFF"
+  },
+  "gameover": {
+    "titleLose": "Game Over",
+    "titleWin": "Victory",
+    "subtitleLose": "You were defeated. Choose your next step.",
+    "subtitleWin": "You survived every wave. Run completed.",
+    "waveScore": "Wave reached: {wave} | Score: {score}",
+    "finalForm": "Final form: {character}",
+    "buildSpent": "Build spent: {spent}/{total}",
+    "restart": "Restart",
+    "home": "Menu"
+  },
+  "hud": {
+    "playerStatus": "State: {state}   HP: {health}/{maxHealth}",
+    "cooldowns": "Attack: {attack}   Cast: {cast}   Regen: {regen}",
+    "wave": "Wave {wave} | {state}",
+    "scoreEssence": "Score: {score} | Essence: {essence}",
+    "enemies": "Alive: {enemies} | To spawn: {remaining}",
+    "progression": "Build: {spent}/{total} | Evolution: {evolution}",
+    "health": "Health {health}/{maxHealth}",
+    "controls": "WASD move | Space/J/K/LMB attack | E/RMB cast | U build | 1-6 spend | R restart",
+    "outsideGrid": "Outside the grid",
+    "cellStatus": "Cell: {piece} | Sub: {walk} | Matrix: {walkable} | Layer: {layer}",
+    "waveStateActive": "active",
+    "waveStatePrepare": "prepare",
+    "final": "final",
+    "regenOff": "off",
+    "walkableTrue": "1",
+    "walkableFalse": "0",
+    "layerBehind": "behind",
+    "layerFront": "front",
+    "ready": "ready"
+  },
+  "build": {
+    "title": "{character} Build",
+    "summary": "Spent points: {spent}/{total} | Next form: {next}",
+    "points": "{points} pts",
+    "currentForm": "Current Form",
+    "finalForm": "Final form",
+    "traitsTitle": "Current passives",
+    "hint": "U close | 1-6 invest | N evolve",
+    "ready": "Ready: {character}",
+    "next": "Next: {character}",
+    "evolveReady": "Press N to evolve into {character}",
+    "finalInProgress": "Final build in progress: finish all 30 points to maximize the run",
+    "pointsMissing": "{points} spent points still needed to evolve"
+  },
+  "banner": {
+    "buildComplete": "Build complete",
+    "readyToEvolve": "{character} ready | N to evolve",
+    "ascends": "{character} ascends",
+    "wave": "Wave {wave}",
+    "waveCleared": "Wave {wave} cleared",
+    "victory": "Victory"
+  },
+  "pickup": {
+    "essence": "+{value} essence"
+  },
+  "states": {
+    "idle": "ready",
+    "idleBlink": "alert",
+    "walk": "moving",
+    "attack": "attacking",
+    "cast": "casting",
+    "hurt": "hurt",
+    "taunt": "taunting",
+    "dead": "dead"
+  },
+  "characters": {
+    "wraith1": {
+      "name": "Wraith I",
+      "trait1": "Soul Scavenger: better essence drop chance and larger pickup radius.",
+      "trait2": "Light Veil: more base speed and +1 base health."
+    },
+    "wraith2": {
+      "name": "Wraith II",
+      "trait1": "Rending Claws: melee hits harder and reaches farther.",
+      "trait2": "Battle Tempo: better cadence and faster attacks."
+    },
+    "wraith3": {
+      "name": "Wraith III",
+      "trait1": "Void Channel: stronger casts, faster cooldowns and larger projectiles.",
+      "trait2": "Soul Dominion: essence is worth more and score scales better."
+    }
+  },
+  "upgrades": {
+    "mobility": {
+      "label": "Mobility",
+      "description": "+ movement speed and essence pickup"
+    },
+    "assault": {
+      "label": "Assault",
+      "description": "+ melee damage and slash range"
+    },
+    "haste": {
+      "label": "Haste",
+      "description": "+ attack and cast speed"
+    },
+    "arcana": {
+      "label": "Arcana",
+      "description": "+ cast damage, radius and projectile speed"
+    },
+    "fortitude": {
+      "label": "Fortitude",
+      "description": "+ maximum health"
+    },
+    "regeneration": {
+      "label": "Regeneration",
+      "description": "+ regeneration and shorter post-hit delay"
+    }
+  }
+}

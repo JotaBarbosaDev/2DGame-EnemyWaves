@@ -15,6 +15,7 @@ import {
 import { getEnemyTypeConfig } from '../data/enemyTypes';
 import {
     PLAYER_CHARACTERS,
+    getPlayerCharacterByAssetId,
     getNextPlayerCharacter
 } from '../data/playerCharacters';
 import {
@@ -29,6 +30,11 @@ import {
     getPlayerUpgradeById
 } from '../data/playerUpgrades';
 import { DEFAULT_GAME_SETTINGS } from '../data/settings';
+import {
+    applyDocumentLocalization,
+    getLanguage,
+    t
+} from '../i18n';
 import { WALK_GRID } from '../data/walkGrid';
 
 const TILE_WIDTH = 256;
@@ -128,7 +134,11 @@ export class Game extends Scene
     {
         this.settings = this.registry.get('settings') ?? { ...DEFAULT_GAME_SETTINGS };
         this.devMode = Boolean(this.settings.devMode);
+        this.language = getLanguage(this.settings);
         this.cameras.main.setBackgroundColor(MAP_BACKGROUND_COLOR);
+
+        applyDocumentLocalization(this.language);
+
         this.physics.world.setBounds(PLAY_AREA.x, PLAY_AREA.y, PLAY_AREA.width, PLAY_AREA.height);
         this.staticZones = [];
         this.playerProjectiles = [];
@@ -153,6 +163,59 @@ export class Game extends Scene
     }
 
     update ()
+    translate (key, params)
+    {
+        return t(this.language, key, params);
+    }
+
+    getPresentedCharacter (character)
+    {
+        if (!character)
+        {
+            return null;
+        }
+
+        return {
+            ...character,
+            label: this.translate(character.labelKey),
+            traits: character.traitKeys.map((traitKey) => this.translate(traitKey))
+        };
+    }
+
+    getCharacterLabelByAssetId (assetId)
+    {
+        const character = getPlayerCharacterByAssetId(assetId);
+
+        return this.translate(character.labelKey);
+    }
+
+    getUpgradeLabel (upgrade)
+    {
+        return this.translate(upgrade.labelKey);
+    }
+
+    playSfx (key, config = {})
+    {
+        if (!this.sound?.play || !this.cache.audio.exists(key))
+        {
+            return;
+        }
+
+        try
+        {
+            this.sound.play(key, config);
+        }
+        catch
+        {
+            // Ignore transient browser audio lock failures.
+        }
+    }
+
+    restartRun ()
+    {
+        this.scene.restart();
+    }
+
     {
         if (!this.playerHitbox || !this.playerSprite)
         {
@@ -375,7 +438,7 @@ export class Game extends Scene
     createPlayer ()
     {
         this.createPlayerAnimations();
-        const character = PLAYER_CHARACTERS[0];
+        const character = this.getPresentedCharacter(PLAYER_CHARACTERS[0]);
 
         this.keys = this.input.keyboard.addKeys({
             up: 'W',
@@ -636,7 +699,7 @@ export class Game extends Scene
             .setScrollFactor(0)
             .setDepth(5000);
 
-        this.controlHintText = this.add.text(this.scale.width / 2, bottomHintY + (bottomHintHeight / 2), 'WASD mover  |  Space/J/K/LMB atacar  |  E/RMB cast  |  U build  |  1-6 gastar', {
+        this.controlHintText = this.add.text(this.scale.width / 2, bottomHintY + (bottomHintHeight / 2), this.translate('hud.controls'), {
             fontFamily: 'Courier New',
             fontSize: 15,
             color: '#e5eefb',
@@ -783,7 +846,7 @@ export class Game extends Scene
             .setDepth(6901)
             .setVisible(false);
 
-        this.evolutionCurrentLabel = this.add.text(previewCenterX, panelTop + 128, 'Forma Atual', {
+        this.evolutionCurrentLabel = this.add.text(previewCenterX, panelTop + 128, this.translate('build.currentForm'), {
             fontFamily: 'Arial Black',
             fontSize: 19,
             color: '#fef3c7',
@@ -858,7 +921,7 @@ export class Game extends Scene
                 .setScrollFactor(0)
                 .setDepth(6903)
                 .setVisible(false);
-            const labelText = this.add.text(barLabelX + 34, rowTop, upgrade.label, {
+            const labelText = this.add.text(barLabelX + 34, rowTop, this.getUpgradeLabel(upgrade), {
                 fontFamily: 'Arial Black',
                 fontSize: 20,
                 color: '#f8fafc',
@@ -913,7 +976,7 @@ export class Game extends Scene
             };
         });
 
-        this.evolutionTraitsTitleText = this.add.text(barLabelX, panelTop + 486, 'Passivas atuais', {
+        this.evolutionTraitsTitleText = this.add.text(barLabelX, panelTop + 486, this.translate('build.traitsTitle'), {
             fontFamily: 'Arial Black',
             fontSize: 20,
             color: '#fef3c7',
@@ -957,7 +1020,7 @@ export class Game extends Scene
             .setDepth(6902)
             .setVisible(false);
 
-        this.evolutionHintText = this.add.text(this.scale.width / 2, panelTop + 624, 'U fechar  |  1-6 investir  |  N evoluir', {
+        this.evolutionHintText = this.add.text(this.scale.width / 2, panelTop + 624, this.translate('build.hint'), {
             fontFamily: 'Courier New',
             fontSize: 17,
             color: '#dbeafe',
@@ -1086,7 +1149,9 @@ export class Game extends Scene
     {
         this.progression.essence += drop.value;
 
-        const text = this.add.text(drop.orb.x, drop.orb.y - 18, `+${drop.value} essencia`, {
+        const text = this.add.text(drop.orb.x, drop.orb.y - 18, this.translate('pickup.essence', {
+            value: drop.value
+        }), {
             fontFamily: 'Arial Black',
             fontSize: 16,
             color: '#bbf7d0',
@@ -1104,6 +1169,7 @@ export class Game extends Scene
             y: text.y - 22,
             onComplete: () => {
 
+        this.playSfx('sfx-pickup', { volume: 0.22 });
                 text.destroy();
 
             }
@@ -1176,15 +1242,17 @@ export class Game extends Scene
 
         if (!nextRequirement && this.progression.totalSpent >= PLAYER_TOTAL_UPGRADE_POINTS)
         {
-            this.showWaveBanner('Build completa');
+            this.showWaveBanner(this.translate('banner.buildComplete'));
         }
         else if (previousRequirement && this.progression.totalSpent >= previousRequirement)
         {
-            const nextCharacter = getNextPlayerCharacter(this.player.character.assetId);
+            const nextCharacter = this.getPresentedCharacter(getNextPlayerCharacter(this.player.character.assetId));
 
             if (nextCharacter)
             {
-                this.showWaveBanner(`${nextCharacter.label} pronto | N para evoluir`);
+                this.showWaveBanner(this.translate('banner.readyToEvolve', {
+                    character: nextCharacter.label
+                }));
             }
         }
 
@@ -1221,7 +1289,7 @@ export class Game extends Scene
             return false;
         }
 
-        const nextCharacter = getNextPlayerCharacter(this.player.character.assetId);
+        const nextCharacter = this.getPresentedCharacter(getNextPlayerCharacter(this.player.character.assetId));
 
         if (!nextCharacter)
         {
@@ -1236,7 +1304,9 @@ export class Game extends Scene
         this.progression.menuOpen = false;
 
         this.cameras.main.flash(240, 250, 240, 200, false);
-        this.showWaveBanner(`${nextCharacter.label} ascende`);
+        this.showWaveBanner(this.translate('banner.ascends', {
+            character: nextCharacter.label
+        }));
 
         return true;
     }
@@ -1325,7 +1395,7 @@ export class Game extends Scene
     refreshEvolutionPanel ()
     {
         const visible = Boolean(this.progression?.menuOpen);
-        const nextCharacter = getNextPlayerCharacter(this.player.character.assetId);
+        const nextCharacter = this.getPresentedCharacter(getNextPlayerCharacter(this.player.character.assetId));
         const nextRequirement = this.getNextEvolutionRequirement();
         const canEvolve = this.canEvolvePlayer();
         const spent = this.progression.totalSpent;
@@ -1372,11 +1442,17 @@ export class Game extends Scene
             return;
         }
 
-        this.evolutionTitleText.setText(`${this.player.character.label} Build`);
-        this.evolutionSummaryText.setText(
-            `Pontos gastos: ${spent}/${PLAYER_TOTAL_UPGRADE_POINTS}  |  Próxima forma: ${nextCharacter ? nextRequirement : 'MAX'}`
-        );
-        this.evolutionEssenceText.setText(`${this.progression.essence} pts`);
+        this.evolutionTitleText.setText(this.translate('build.title', {
+            character: this.player.character.label
+        }));
+        this.evolutionSummaryText.setText(this.translate('build.summary', {
+            next: nextCharacter ? nextRequirement : 'MAX',
+            spent,
+            total: PLAYER_TOTAL_UPGRADE_POINTS
+        }));
+        this.evolutionEssenceText.setText(this.translate('build.points', {
+            points: this.progression.essence
+        }));
 
         this.evolutionCurrentLabel.setText(this.player.character.label);
         this.evolutionCurrentPreviewShadow.y = this.evolutionPreviewFrame.y + 74;
@@ -1389,7 +1465,9 @@ export class Game extends Scene
             this.evolutionArrowText.setVisible(true);
             this.evolutionNextLabel.setVisible(true);
             this.evolutionNextPreview.setVisible(true);
-            this.evolutionNextLabel.setText(canEvolve ? `Pronto: ${nextCharacter.label}` : `Próxima: ${nextCharacter.label}`);
+            this.evolutionNextLabel.setText(this.translate(canEvolve ? 'build.ready' : 'build.next', {
+                character: nextCharacter.label
+            }));
             this.evolutionNextPreview.y = this.evolutionPreviewFrame.y + 94 + (Math.sin((this.time.now / 250) + 0.8) * 3);
             this.evolutionNextPreview.setTexture(getPlayerFrameKey(nextCharacter.assetId, 'idle', 0));
             this.evolutionNextPreview.anims.play(getPlayerAnimationKey(nextCharacter.assetId, 'idle'), true);
@@ -1399,7 +1477,7 @@ export class Game extends Scene
         {
             this.evolutionArrowText.setVisible(false);
             this.evolutionNextLabel.setVisible(true);
-            this.evolutionNextLabel.setText('Forma final');
+            this.evolutionNextLabel.setText(this.translate('build.finalForm'));
             this.evolutionNextPreview.setVisible(false);
         }
 
@@ -1412,7 +1490,7 @@ export class Game extends Scene
             const labelColor = atMax ? '#a7f3d0' : affordable ? '#ffffff' : '#cbd5e1';
 
             row.labelText.setColor(labelColor);
-            row.labelText.setText(upgrade.label);
+            row.labelText.setText(this.getUpgradeLabel(upgrade));
             row.levelText.setText(`${level} / ${upgrade.maxLevel}`);
             row.hotkeyBubble.setFillStyle(upgrade.color, atMax ? 0.45 : 0.92);
             row.frame.setStrokeStyle(2, upgrade.color, affordable ? 0.62 : 0.22);
@@ -1445,19 +1523,23 @@ export class Game extends Scene
         {
             this.evolutionStatusText
                 .setColor('#bbf7d0')
-                .setText(`N para evoluir para ${nextCharacter.label}`);
+                .setText(this.translate('build.evolveReady', {
+                    character: nextCharacter.label
+                }));
         }
         else if (!nextCharacter)
         {
             this.evolutionStatusText
                 .setColor('#fde68a')
-                .setText('Build final em curso: fecha os 30 pontos para maximizar a run');
+                .setText(this.translate('build.finalInProgress'));
         }
         else
         {
             this.evolutionStatusText
                 .setColor('#dbeafe')
-                .setText(`Faltam ${Math.max(0, nextRequirement - spent)} pontos gastos para evoluir`);
+                .setText(this.translate('build.pointsMissing', {
+                    points: Math.max(0, nextRequirement - spent)
+                }));
         }
     }
 
@@ -1583,7 +1665,7 @@ export class Game extends Scene
         {
             this.currentPieceMarker.setVisible(false);
             this.currentWalkMarker.setVisible(false);
-            this.cellStatusText.setText('Fora da matriz');
+            this.cellStatusText.setText(this.translate('hud.outsideGrid'));
 
             return;
         }
@@ -1594,33 +1676,60 @@ export class Game extends Scene
         this.currentWalkMarker.setVisible(true);
         this.currentWalkMarker.setPosition(this.walkCellLeft(walkCell.column), this.walkCellTop(walkCell.row));
 
-        this.cellStatusText.setText(
-            `Celula: ${pieceCell.id} | Sub: ${walkCell.id} | Matriz: ${walkCell.walkable ? '1' : '0'} | Camada: ${this.isPlayerBehindCell(pieceCell) ? 'tras' : 'frente'}`
-        );
+        this.cellStatusText.setText(this.translate('hud.cellStatus', {
+            layer: this.translate(this.isPlayerBehindCell(pieceCell) ? 'hud.layerBehind' : 'hud.layerFront'),
+            piece: pieceCell.id,
+            walk: walkCell.id,
+            walkable: this.translate(walkCell.walkable ? 'hud.walkableTrue' : 'hud.walkableFalse')
+        }));
     }
 
     updateHud (now)
     {
         const attackCooldown = this.formatCooldown(this.player.nextAttackAt - now);
         const castCooldown = this.formatCooldown(this.player.nextCastAt - now);
-        const waveStateLabel = this.wave.active ? 'ativa' : 'prepara';
+        const waveStateLabel = this.translate(this.wave.active ? 'hud.waveStateActive' : 'hud.waveStatePrepare');
         const enemiesRemaining = Math.max(0, this.wave.enemiesToSpawn - this.wave.spawned);
         const enemies = this.getLivingEnemyCount();
         const healthRatio = this.player.health / this.player.maxHealth;
         const nextRequirement = this.getNextEvolutionRequirement();
-        const evolutionLabel = nextRequirement ? `${Math.min(this.progression.totalSpent, nextRequirement)}/${nextRequirement}` : 'final';
-        const regenLabel = this.player.stats.regenPerSecond > 0 ? `${this.player.stats.regenPerSecond.toFixed(1)}/s` : 'off';
+        const evolutionLabel = nextRequirement ? `${Math.min(this.progression.totalSpent, nextRequirement)}/${nextRequirement}` : this.translate('hud.final');
+        const regenLabel = this.player.stats.regenPerSecond > 0 ? `${this.player.stats.regenPerSecond.toFixed(1)}/s` : this.translate('hud.regenOff');
 
         this.playerHeaderText.setText(this.player.character.label);
-        this.playerStatusText.setText(`Estado: ${this.formatPlayerStateLabel(this.player.state)}   HP: ${this.formatHealthValue(this.player.health)}/${this.formatHealthValue(this.player.maxHealth)}`);
-        this.playerCooldownText.setText(`Ataque: ${attackCooldown}   Cast: ${castCooldown}   Regen: ${regenLabel}`);
-        this.waveStatusText.setText(`Wave ${Math.max(1, this.wave.current)}  |  ${waveStateLabel}`);
-        this.scoreStatusText.setText(`Score: ${this.score}   |   Essencia: ${this.progression.essence}`);
-        this.enemyStatusText.setText(`Vivos: ${enemies}   Por surgir: ${enemiesRemaining}`);
-        this.progressionStatusText.setText(`Build: ${this.progression.totalSpent}/${PLAYER_TOTAL_UPGRADE_POINTS}   |   Evolucao: ${evolutionLabel}`);
+        this.playerStatusText.setText(this.translate('hud.playerStatus', {
+            health: this.formatHealthValue(this.player.health),
+            maxHealth: this.formatHealthValue(this.player.maxHealth),
+            state: this.formatPlayerStateLabel(this.player.state)
+        }));
+        this.playerCooldownText.setText(this.translate('hud.cooldowns', {
+            attack: attackCooldown,
+            cast: castCooldown,
+            regen: regenLabel
+        }));
+        this.waveStatusText.setText(this.translate('hud.wave', {
+            state: waveStateLabel,
+            wave: Math.max(1, this.wave.current)
+        }));
+        this.scoreStatusText.setText(this.translate('hud.scoreEssence', {
+            essence: this.progression.essence,
+            score: this.score
+        }));
+        this.enemyStatusText.setText(this.translate('hud.enemies', {
+            enemies,
+            remaining: enemiesRemaining
+        }));
+        this.progressionStatusText.setText(this.translate('hud.progression', {
+            evolution: evolutionLabel,
+            spent: this.progression.totalSpent,
+            total: PLAYER_TOTAL_UPGRADE_POINTS
+        }));
 
         this.playerHealthBarFill.width = Math.max(0, PLAYER_HEALTH_BAR_WIDTH * healthRatio);
-        this.playerHealthBarLabel.setText(`Vida ${this.formatHealthValue(this.player.health)}/${this.formatHealthValue(this.player.maxHealth)}`);
+        this.playerHealthBarLabel.setText(this.translate('hud.health', {
+            health: this.formatHealthValue(this.player.health),
+            maxHealth: this.formatHealthValue(this.player.maxHealth)
+        }));
     }
 
     updatePlayerAim ()
@@ -1967,7 +2076,9 @@ export class Game extends Scene
         this.wave.upcomingAt = now;
         this.nextEnemySpawnAt = now + 360;
 
-        this.showWaveBanner(`Wave ${waveNumber}`);
+        this.showWaveBanner(this.translate('banner.wave', {
+            wave: waveNumber
+        }));
     }
 
     completeWave (now)
@@ -2826,21 +2937,21 @@ export class Game extends Scene
         switch (state)
         {
             case 'idle':
-                return 'pronto';
+                return this.translate('states.idle');
             case 'idle-blink':
-                return 'alerta';
+                return this.translate('states.idleBlink');
             case 'walk':
-                return 'mover';
+                return this.translate('states.walk');
             case 'attack':
-                return 'ataque';
+                return this.translate('states.attack');
             case 'cast':
-                return 'cast';
+                return this.translate('states.cast');
             case 'hurt':
-                return 'ferido';
+                return this.translate('states.hurt');
             case 'taunt':
-                return 'provocar';
+                return this.translate('states.taunt');
             case 'dead':
-                return 'morto';
+                return this.translate('states.dead');
             default:
                 return state;
         }
@@ -2860,7 +2971,7 @@ export class Game extends Scene
     {
         if (remainingMs <= 0)
         {
-            return 'pronto';
+            return this.translate('hud.ready');
         }
 
         return `${(remainingMs / 1000).toFixed(1)}s`;
