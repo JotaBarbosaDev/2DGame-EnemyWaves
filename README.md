@@ -1,7 +1,7 @@
 # 2D Enemy Waves
 
 ## 1. Elementos do grupo
-- Nome: [PREENCHER]
+- Nome: João Marcelo Boucinha Barbosa - 32536
 - Numero: [PREENCHER]
 
 ## 2. Tecnologias e dependencias
