@@ -1,12 +1,5 @@
 import { Input, Math as PhaserMath, Scene } from 'phaser';
 import {
-    BLOCKED_EDGES,
-    MAP_DECORATIONS,
-    MAP_PROPS,
-    MAP_TILES,
-    PLAYER_SPAWN_CELL
-} from '../data/mapLayout';
-import {
     ENEMY_ANIMATIONS,
     ENEMY_VARIANTS,
     getEnemyAnimationKey,
@@ -35,7 +28,6 @@ import {
     getLanguage,
     t
 } from '../i18n';
-import { WALK_GRID } from '../data/walkGrid';
 
 const MAP_RENDER_SCALE = 2;
 const TILE_WIDTH = 32 * MAP_RENDER_SCALE;
@@ -44,20 +36,16 @@ const PIECE_COLUMNS = 70;
 const PIECE_ROWS = 46;
 const GRID_ORIGIN_X = 0;
 const GRID_ORIGIN_Y = 0;
-const FLOOR_VISIBLE_TOP_OFFSET = 0;
 const MAP_BACKGROUND_COLOR = 0x1b1f24;
 const COLUMN_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const WALK_SUBCOLUMNS_PER_CELL = 1;
-const WALK_SUBROWS_PER_CELL = 1;
-
-const WALK_COLUMNS = PIECE_COLUMNS * WALK_SUBCOLUMNS_PER_CELL;
-const WALK_ROWS = PIECE_ROWS * WALK_SUBROWS_PER_CELL;
+const WALK_COLUMNS = PIECE_COLUMNS;
+const WALK_ROWS = PIECE_ROWS;
 const PIECE_CELL_HEIGHT = TILE_ROW_STEP;
-const WALK_CELL_WIDTH = TILE_WIDTH / WALK_SUBCOLUMNS_PER_CELL;
-const WALK_CELL_HEIGHT = PIECE_CELL_HEIGHT / WALK_SUBROWS_PER_CELL;
+const WALK_CELL_WIDTH = TILE_WIDTH;
+const WALK_CELL_HEIGHT = PIECE_CELL_HEIGHT;
 const WALK_ORIGIN_X = GRID_ORIGIN_X;
-const WALK_ORIGIN_Y = GRID_ORIGIN_Y + FLOOR_VISIBLE_TOP_OFFSET;
-const EDGE_BARRIER_THICKNESS = 16;
+const WALK_ORIGIN_Y = GRID_ORIGIN_Y;
+const PLAYER_SPAWN = { column: 14, row: 9 };
 const PLAYER_VISUAL_SCALE = 0.24;
 const PLAYER_HITBOX_WIDTH = 42;
 const PLAYER_HITBOX_HEIGHT = 24;
@@ -70,7 +58,6 @@ const PLAYER_ATTACK_EFFECT_DISTANCE = 44;
 const PLAYER_PROJECTILE_LIFETIME = 1000;
 const PLAYER_PROJECTILE_OFFSET_X = 28;
 const PLAYER_PROJECTILE_OFFSET_Y = 46;
-const PLAYER_DEPTH_BEHIND_OFFSET = 180;
 const PLAYER_DEPTH_FRONT_OFFSET = 2;
 const PLAYER_AIM_MIN_DISTANCE = 12;
 const PLAYER_HEALTH_BAR_WIDTH = 240;
@@ -124,7 +111,6 @@ const CAMERA_BOUNDS = {
     height: PLAY_AREA.height + 340
 };
 
-validateWalkGrid();
 
 export class Game extends Scene
 {
@@ -145,11 +131,8 @@ export class Game extends Scene
         this.physics.world.setBounds(PLAY_AREA.x, PLAY_AREA.y, PLAY_AREA.width, PLAY_AREA.height);
         this.staticZones = [];
         this.playerProjectiles = [];
-        this.playerBehindCellKeys = this.buildPlayerBehindCellKeys();
-
         this.createMap();
         this.buildBlockedZonesFromMatrix();
-        this.buildBlockedEdgeZones();
         if (this.devMode)
         {
             this.createGridOverlay();
@@ -321,11 +304,6 @@ export class Game extends Scene
 
     buildWalkGridFromTilemap ()
     {
-        if (!this.map)
-        {
-            return WALK_GRID;
-        }
-
         const rows = Array.from({ length: PIECE_ROWS }, () => Array.from({ length: PIECE_COLUMNS }, () => '1'));
 
         for (const layerData of this.map.layers)
@@ -380,42 +358,6 @@ export class Game extends Scene
                 this.addStaticZone(x, y, width, WALK_CELL_HEIGHT);
             }
         }
-    }
-
-    buildBlockedEdgeZones ()
-    {
-        for (const [fromId, toId] of BLOCKED_EDGES)
-        {
-            this.addBlockedEdge(this.cellToCoords(fromId), this.cellToCoords(toId));
-        }
-    }
-
-    addBlockedEdge (fromCell, toCell)
-    {
-        const columnDelta = toCell.column - fromCell.column;
-        const rowDelta = toCell.row - fromCell.row;
-
-        if (Math.abs(columnDelta) + Math.abs(rowDelta) !== 1)
-        {
-            throw new Error(`BLOCKED_EDGES so aceita celulas vizinhas: ${this.pieceCellId(fromCell.column, fromCell.row)} <-> ${this.pieceCellId(toCell.column, toCell.row)}`);
-        }
-
-        if (columnDelta !== 0)
-        {
-            const boundaryColumn = Math.max(fromCell.column, toCell.column);
-            const x = this.pieceCellLeft(boundaryColumn);
-            const y = this.pieceCellCenterY(fromCell.row);
-
-            this.addStaticZone(x, y, EDGE_BARRIER_THICKNESS, PIECE_CELL_HEIGHT);
-
-            return;
-        }
-
-        const boundaryRow = Math.max(fromCell.row, toCell.row);
-        const x = this.pieceCellCenterX(fromCell.column);
-        const y = this.pieceCellTop(boundaryRow);
-
-        this.addStaticZone(x, y, TILE_WIDTH, EDGE_BARRIER_THICKNESS);
     }
 
     createGridOverlay ()
@@ -540,9 +482,8 @@ export class Game extends Scene
 
         });
 
-        const spawnCell = this.cellToCoords(PLAYER_SPAWN_CELL);
-        const footX = this.pieceCellCenterX(spawnCell.column);
-        const footY = this.pieceCellCenterY(spawnCell.row) + PLAYER_FOOT_Y_OFFSET;
+        const footX = this.pieceCellCenterX(PLAYER_SPAWN.column);
+        const footY = this.pieceCellCenterY(PLAYER_SPAWN.row) + PLAYER_FOOT_Y_OFFSET;
 
         this.playerHitbox = this.add.zone(
             footX,
@@ -1606,9 +1547,7 @@ export class Game extends Scene
     syncPlayerVisual ()
     {
         const feet = this.getPlayerFeetPosition();
-        const pieceCell = this.getPieceCellAtWorldPosition(feet.x, feet.y);
-        const playerBehindForeground = pieceCell && this.isPlayerBehindCell(pieceCell);
-        const playerDepth = playerBehindForeground ? feet.y - PLAYER_DEPTH_BEHIND_OFFSET : feet.y + PLAYER_DEPTH_FRONT_OFFSET;
+        const playerDepth = feet.y + PLAYER_DEPTH_FRONT_OFFSET;
 
         this.playerShadow.setPosition(feet.x, feet.y + PLAYER_SHADOW_OFFSET_Y);
         this.playerShadow.setDepth(playerDepth - 3);
@@ -1619,11 +1558,6 @@ export class Game extends Scene
         this.playerSprite.setDepth(playerDepth);
     }
 
-    isPlayerBehindCell (pieceCell)
-    {
-        return this.playerBehindCellKeys.has(this.cellKey(pieceCell.column, pieceCell.row));
-    }
-
     buildPlayerFrameList (assetId, state, frameCount)
     {
         return Array.from({ length: frameCount }, (_, index) => ({ key: getPlayerFrameKey(assetId, state, index) }));
@@ -1632,51 +1566,6 @@ export class Game extends Scene
     buildEnemyFrameList (variant, state, frameCount)
     {
         return Array.from({ length: frameCount }, (_, index) => ({ key: getEnemyFrameKey(variant, state, index + 1) }));
-    }
-
-    placeFloorTile (key, column, row, depth)
-    {
-        this.add.image(this.gridX(column), this.gridY(row), key)
-            .setOrigin(0, 0)
-            .setDepth(depth);
-    }
-
-    placeCellImage (key, cell, depthType, depthOffset = 0, offsetX = 0, offsetY = 0)
-    {
-        this.add.image(
-            this.gridX(cell.column) + offsetX,
-            this.gridY(cell.row) + offsetY,
-            key
-        )
-            .setOrigin(0, 0)
-            .setDepth(this.resolveDepth(depthType, cell.row, depthOffset));
-    }
-
-    placeProp (key, x, y, depth)
-    {
-        this.add.image(x, y, key)
-            .setOrigin(0, 0)
-            .setDepth(depth);
-    }
-
-    drawDecoration (decoration)
-    {
-        if (decoration.type !== 'rect')
-        {
-            return;
-        }
-
-        const cell = this.cellToCoords(decoration.cell);
-
-        this.add.rectangle(
-            this.gridX(cell.column) + (decoration.offsetX ?? 0),
-            this.gridY(cell.row) + (decoration.offsetY ?? 0),
-            decoration.width,
-            decoration.height,
-            decoration.color,
-            decoration.alpha
-        )
-            .setDepth(this.resolveDepth(decoration.depth, cell.row, decoration.depthOffset ?? 0));
     }
 
     addStaticZone (x, y, width, height)
@@ -1737,7 +1626,7 @@ export class Game extends Scene
         this.currentWalkMarker.setPosition(this.walkCellLeft(walkCell.column), this.walkCellTop(walkCell.row));
 
         this.cellStatusText.setText(this.translate('hud.cellStatus', {
-            layer: this.translate(this.isPlayerBehindCell(pieceCell) ? 'hud.layerBehind' : 'hud.layerFront'),
+            layer: this.translate('hud.layerFront'),
             piece: pieceCell.id,
             walk: walkCell.id,
             walkable: this.translate(walkCell.walkable ? 'hud.walkableTrue' : 'hud.walkableFalse')
@@ -2103,9 +1992,7 @@ export class Game extends Scene
     syncEnemyVisual (enemy)
     {
         const feet = this.getEnemyFeetPosition(enemy);
-        const pieceCell = this.getPieceCellAtWorldPosition(feet.x, feet.y);
-        const behindForeground = pieceCell && this.isPlayerBehindCell(pieceCell);
-        const depth = behindForeground ? feet.y - PLAYER_DEPTH_BEHIND_OFFSET : feet.y + 1;
+        const depth = feet.y + 1;
 
         enemy.shadow.setPosition(feet.x, feet.y + ENEMY_SHADOW_OFFSET_Y);
         enemy.shadow.setDepth(depth - 3);
@@ -3113,9 +3000,9 @@ export class Game extends Scene
 
     isWalkable (column, row)
     {
-        const grid = this.tiledWalkGrid ?? WALK_GRID;
+        const grid = this.tiledWalkGrid;
 
-        return grid[row]?.[column] === '1';
+        return !grid || grid[row]?.[column] === '1';
     }
 
     pieceCellId (column, row)
@@ -3141,97 +3028,6 @@ export class Game extends Scene
         while (value >= 0);
 
         return label;
-    }
-
-    cellToCoords (cellId)
-    {
-        const match = /^([A-Z]+)(\d+)$/i.exec(cellId.trim());
-
-        if (!match)
-        {
-            throw new Error(`Celula invalida: ${cellId}`);
-        }
-
-        const column = COLUMN_LABELS.indexOf(match[1].toUpperCase());
-        const row = Number.parseInt(match[2], 10) - 1;
-
-        if (column < 0 || column >= PIECE_COLUMNS || row < 0 || row >= PIECE_ROWS)
-        {
-            throw new Error(`Celula fora da grelha: ${cellId}`);
-        }
-
-        return { column, row };
-    }
-
-    expandCellRefs (cellRefs)
-    {
-        const cells = [];
-        const refs = Array.isArray(cellRefs) ? cellRefs : [cellRefs];
-
-        for (const ref of refs)
-        {
-            if (ref.includes(':'))
-            {
-                const [startId, endId] = ref.split(':');
-                const start = this.cellToCoords(startId);
-                const end = this.cellToCoords(endId);
-                const startColumn = Math.min(start.column, end.column);
-                const endColumn = Math.max(start.column, end.column);
-                const startRow = Math.min(start.row, end.row);
-                const endRow = Math.max(start.row, end.row);
-
-                for (let row = startRow; row <= endRow; row++)
-                {
-                    for (let column = startColumn; column <= endColumn; column++)
-                    {
-                        cells.push({ column, row });
-                    }
-                }
-
-                continue;
-            }
-
-            cells.push(this.cellToCoords(ref));
-        }
-
-        return cells;
-    }
-
-    buildPlayerBehindCellKeys ()
-    {
-        const keys = new Set();
-
-        for (const entry of [...MAP_TILES, ...MAP_PROPS])
-        {
-            if (entry.behind !== true && entry.playerLayer !== 'behind')
-            {
-                continue;
-            }
-
-            const refs = entry.behindCells ?? entry.playerLayerCells ?? entry.cells ?? [entry.cell];
-
-            for (const cell of this.expandCellRefs(refs))
-            {
-                keys.add(this.cellKey(cell.column, cell.row));
-            }
-        }
-
-        return keys;
-    }
-
-    resolveDepth (depthType, row, depthOffset = 0)
-    {
-        if (depthType === 'wall')
-        {
-            return this.wallDepth(row) + depthOffset;
-        }
-
-        if (depthType === 'gridY')
-        {
-            return this.gridY(row) + depthOffset;
-        }
-
-        return this.floorDepth(row) + depthOffset;
     }
 
     cellKey (column, row)
@@ -3269,44 +3065,4 @@ export class Game extends Scene
         return WALK_ORIGIN_Y + (row * WALK_CELL_HEIGHT);
     }
 
-    floorDepth (row)
-    {
-        return this.gridY(row) + 20;
-    }
-
-    wallDepth (row)
-    {
-        return this.gridY(row) + 304;
-    }
-
-    gridX (column)
-    {
-        return GRID_ORIGIN_X + (column * TILE_WIDTH);
-    }
-
-    gridY (row)
-    {
-        return GRID_ORIGIN_Y + (row * TILE_ROW_STEP);
-    }
-}
-
-function validateWalkGrid ()
-{
-    if (WALK_GRID.length !== WALK_ROWS)
-    {
-        throw new Error(`WALK_GRID precisa de ${WALK_ROWS} linhas, recebeu ${WALK_GRID.length}.`);
-    }
-
-    for (const row of WALK_GRID)
-    {
-        if (row.length !== WALK_COLUMNS)
-        {
-            throw new Error(`Cada linha de WALK_GRID precisa de ${WALK_COLUMNS} colunas, recebeu ${row.length}.`);
-        }
-
-        if (/[^01]/.test(row))
-        {
-            throw new Error('WALK_GRID só pode conter 0 e 1.');
-        }
-    }
 }
