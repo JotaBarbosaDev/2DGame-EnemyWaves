@@ -5,7 +5,6 @@ import {
     getEnemyFramePath
 } from '../data/enemyAnimations';
 import { Scene } from 'phaser';
-import { MAP_ASSETS } from '../data/mapAssets';
 import { PLAYER_CHARACTERS } from '../data/playerCharacters';
 import {
     PLAYER_ANIMATIONS,
@@ -48,10 +47,13 @@ export class Preloader extends Scene
         this.load.audio('sfx-pickup', 'audio/pickup.wav');
         this.load.audio('sfx-gameover', 'audio/gameover.wav');
 
-        for (const [key, path] of MAP_ASSETS)
-        {
-            this.load.image(key, path);
-        }
+        this.load.tilemapTiledJSON('test-map', 'maps/map3.json');
+        this.load.image('Grass', 'map/TX Tileset Grass.png');
+        this.load.image('wall', 'map/TX Tileset Wall.png');
+        this.load.image('Props', 'map/TX Props with Shadow.png');
+        this.load.image('Plant', 'map/TX Plant with Shadow.png');
+        this.load.image('props', 'map/TX Props.png');
+
 
         for (const character of PLAYER_CHARACTERS)
         {
