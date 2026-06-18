@@ -26215,7 +26215,7 @@
     {
       "columns": 8,
       "firstgid": 1,
-      "image": "map/TX Tileset Grass.png",
+      "image": "../map/TX Tileset Grass.png",
       "imageheight": 256,
       "imagewidth": 256,
       "margin": 0,
@@ -26228,7 +26228,7 @@
     {
       "columns": 16,
       "firstgid": 65,
-      "image": "map/TX Tileset Wall.png",
+      "image": "../map/TX Tileset Wall.png",
       "imageheight": 512,
       "imagewidth": 512,
       "margin": 0,
@@ -26241,7 +26241,7 @@
     {
       "columns": 16,
       "firstgid": 321,
-      "image": "map/TX Props with Shadow.png",
+      "image": "../map/TX Props with Shadow.png",
       "imageheight": 512,
       "imagewidth": 512,
       "margin": 0,
@@ -26254,7 +26254,7 @@
     {
       "columns": 16,
       "firstgid": 577,
-      "image": "map/TX Plant with Shadow.png",
+      "image": "../map/TX Plant with Shadow.png",
       "imageheight": 512,
       "imagewidth": 512,
       "margin": 0,
@@ -26267,7 +26267,7 @@
     {
       "columns": 16,
       "firstgid": 833,
-      "image": "map/TX Props.png",
+      "image": "../map/TX Props.png",
       "imageheight": 512,
       "imagewidth": 512,
       "margin": 0,
