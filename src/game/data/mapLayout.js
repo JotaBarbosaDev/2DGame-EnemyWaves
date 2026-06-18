@@ -1,5 +1,5 @@
 // Mapa atual feito no Tiled.
-// O ficheiro usado pelo jogo fica em public/assets/maps/map1.json.
+// O ficheiro usado pelo jogo fica em public/assets/maps/map2.json.
 //
 // Por agora estas listas ficam vazias porque o desenho do mapa vem do Tiled.
 // Se precisares de colisões, cria uma layer no Tiled chamada "collision" e depois

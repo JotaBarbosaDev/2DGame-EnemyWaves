@@ -40,8 +40,8 @@ import { WALK_GRID } from '../data/walkGrid';
 const MAP_RENDER_SCALE = 2;
 const TILE_WIDTH = 32 * MAP_RENDER_SCALE;
 const TILE_ROW_STEP = 32 * MAP_RENDER_SCALE;
-const PIECE_COLUMNS = 30;
-const PIECE_ROWS = 20;
+const PIECE_COLUMNS = 70;
+const PIECE_ROWS = 46;
 const GRID_ORIGIN_X = 0;
 const GRID_ORIGIN_Y = 0;
 const FLOOR_VISIBLE_TOP_OFFSET = 0;
@@ -109,7 +109,7 @@ const ESSENCE_DROP_MAGNET_SPEED = 420;
 const ESSENCE_DROP_PICKUP_DISTANCE = 22;
 
 const PLAYER_ACTION_STATES = new Set(['attack', 'cast', 'hurt', 'taunt', 'dead']);
-const COLLISION_LAYER_NAMES = new Set(['walls', 'props', 'collision', 'collisions']);
+const COLLISION_LAYER_NAMES = new Set(['collision', 'collisions']);
 const PLAY_AREA = {
     x: WALK_ORIGIN_X,
     y: WALK_ORIGIN_Y,
@@ -283,13 +283,19 @@ export class Game extends Scene
         const tilesets = [
             this.map.addTilesetImage('Grass', 'Grass'),
             this.map.addTilesetImage('wall', 'wall'),
+            this.map.addTilesetImage('Props', 'Props'),
+            this.map.addTilesetImage('Plant', 'Plant'),
             this.map.addTilesetImage('props', 'props')
         ].filter(Boolean);
 
         const layerDepths = {
-            'Tile Layer 1': 0,
+            Ground: 0,
+            Ground_plants: 1,
+            plant_bottom: 5,
             walls: 10,
-            props: 20
+            Objects: 15,
+            'walls vert': 18,
+            plant_top: 30
         };
 
         for (const layerData of this.map.layers)
@@ -303,6 +309,11 @@ export class Game extends Scene
 
             layer.setScale(MAP_RENDER_SCALE);
             layer.setDepth(layerDepths[layerData.name] ?? 0);
+
+            if (COLLISION_LAYER_NAMES.has(layerData.name.toLowerCase()))
+            {
+                layer.setVisible(false);
+            }
         }
 
         this.tiledWalkGrid = this.buildWalkGridFromTilemap();
