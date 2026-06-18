@@ -2,12 +2,13 @@
 
 ## 1. Elementos do grupo
 - Nome: João Marcelo Boucinha Barbosa - 32536
-- Numero: Micael Vieira da Costa - 23121
+- Nome: Micael Vieira da Costa - 23121
 
 ## 2. Tecnologias e dependencias
 - Phaser: `3.90.0`
-- Integracao do Phaser: `npm`
 - Bundler: `Vite`
+- Gestor de pacotes: `npm`
+- Editor de mapas: `Tiled`
 - Scripts principais:
   - `npm run dev`
   - `npm run build`
@@ -18,6 +19,8 @@
 `2D Enemy Waves` e um jogo 2D de acao e sobrevivencia em arena. O jogador controla uma Wraith, enfrenta ondas sucessivas de zombies, recolhe essencia e investe pontos em upgrades para sobreviver mais tempo e evoluir a personagem.
 
 O ciclo principal do jogo e: menu -> jogo -> combate por waves -> recolha de essencia -> upgrades/evolucao -> derrota ou vitoria. A run termina em `Game Over` quando a vida chega a zero, ou em `Vitoria` ao limpar a wave 10.
+
+Apesar de visualmente ser um jogo simples, o projeto tem varios sistemas internos: mapa Tiled, colisao, inimigos, waves, HUD, upgrades, evolucao da personagem, animacoes, menus e suporte PT/EN.
 
 ## 4. Genero, objetivo, regras e funcionalidades
 - Genero: acao / sobrevivencia em arena 2D
@@ -31,7 +34,10 @@ O ciclo principal do jogo e: menu -> jogo -> combate por waves -> recolha de ess
 - Funcionalidades implementadas:
   - movimento do jogador;
   - ataque melee e cast a distancia;
-  - colisao com o mapa via Arcade Physics;
+  - inimigos com vida, ataque, dano e morte;
+  - sistema de waves com dificuldade progressiva;
+  - mapa criado no Tiled e carregado em Phaser;
+  - colisao com o mapa atraves da layer `collision` do Tiled;
   - HUD com vida, score, wave, inimigos e progresso da build;
   - menu principal;
   - menu de build/evolucao;
@@ -59,6 +65,11 @@ npm run dev
 
 O Vite arranca por omissao em `http://localhost:8080`.
 
+### Desenvolvimento sem logs extra
+```bash
+npm run dev-nolog
+```
+
 ### Build de producao
 ```bash
 npm run build
@@ -66,56 +77,115 @@ npm run build
 
 O output final fica na pasta `dist/`.
 
-## 7. Aspetos multimedia
+## 7. Mapa e Tiled
+O mapa principal foi criado no Tiled e esta guardado em:
+
+- `public/assets/maps/map3.json`
+
+O Phaser carrega este mapa no `Preloader` com a chave `test-map`.
+
+Tilesets carregados em runtime:
+- `public/assets/map/TX Tileset Grass.png`
+- `public/assets/map/TX Tileset Wall.png`
+- `public/assets/map/TX Props with Shadow.png`
+- `public/assets/map/TX Plant with Shadow.png`
+- `public/assets/map/TX Props.png`
+
+A colisao do mapa e controlada por uma layer do Tiled chamada:
+
+- `collision`
+
+Essa layer pode estar invisivel no Tiled, mas continua a ser lida pelo jogo para criar zonas de colisao em Phaser.
+
+## 8. Aspetos multimedia
 ### Imagens
-- **Mapa**: tiles do pack `Prototype Pack (2.3)` de Kenney, com licenca `CC0`, conforme `public/assets/map/License.txt`.
+- **Mapa**: tiles pixel art top-down carregados a partir de `public/assets/map/` e mapa exportado do Tiled em `public/assets/maps/map3.json`.
 - **Inimigos**: sprites de zombies provenientes de packs com licenca Craftpix, conforme `public/assets/enemy/License.txt`.
 - **Jogador**: sprites `Wraith` provenientes de pack com licenca Craftpix, conforme `public/assets/player1/TXT/license.txt`.
 
-### Formatos e tamanhos usados em runtime
-- Background principal: `PNG`, `1024x768`
-- Tile de piso do mapa: `PNG`, `256x512`
-- Frame do jogador `Wraith_01_Idle_000`: `PNG`, `520x420`
-- Frame do inimigo `Zombie1 Idle1`: `PNG`, `222x372`
-
-### Justificacao visual
-- Os sprites de origem sao maiores do que o tamanho final em jogo, o que permite reduzi-los em Phaser sem perder legibilidade.
-- O mapa usa poucas pecas do tileset para manter o preload simples e coerente com a arena.
+### Formatos usados em runtime
+- Mapas Tiled: `JSON`
+- Tilesets e sprites: `PNG`
+- Audio: `WAV`
 
 ### Audio
-- Os efeitos sonoros foram gerados especificamente para este projeto e guardados em `public/assets/audio/`.
-- Formato: `WAV`
-- Ficheiros usados:
-  - `attack.wav` - ~0.09s - ~4 KB
-  - `pickup.wav` - ~0.12s - ~5 KB
-  - `gameover.wav` - ~0.26s - ~11 KB
-- Eventos com audio:
-  - ataque melee;
-  - recolha de essencia;
-  - morte / fim da run.
+Os efeitos sonoros estao em `public/assets/audio/`.
 
-### Otimizacao e limpeza de assets
-- Foram removidos assets nao usados em runtime, incluindo ficheiros `.ai`, `.eps`, `.unitypackage`, `.zip`, `.url`, sprites de teste e partes vetoriais nao carregadas pelo jogo.
-- A pasta `public/assets` passou de uma colecao de trabalho bruta para um conjunto focado nos ficheiros realmente carregados pelo jogo.
+Ficheiros usados:
+- `attack.wav` - ataque melee
+- `pickup.wav` - recolha de essencia
+- `gameover.wav` - morte / fim da run
 
-## 8. Estrutura do projeto
-- `src/game/main.js`: configuracao do Phaser
+## 9. Estrutura do projeto
+```text
+src/
+├── main.js
+└── game/
+    ├── main.js
+    ├── scenes/
+    │   ├── Boot.js
+    │   ├── Preloader.js
+    │   ├── MainMenu.js
+    │   ├── Game.js
+    │   └── GameOver.js
+    ├── systems/
+    │   ├── MapSystem.js
+    │   └── HudSystem.js
+    ├── data/
+    │   ├── gameConstants.js
+    │   ├── enemyAnimations.js
+    │   ├── enemyTypes.js
+    │   ├── playerAnimations.js
+    │   ├── playerCharacters.js
+    │   ├── playerUpgrades.js
+    │   └── settings.js
+    └── i18n/
+        ├── index.js
+        ├── pt.json
+        └── en.json
+```
+
+### Principais ficheiros
+- `src/game/main.js`: configuracao do Phaser e registo das cenas
 - `src/game/scenes/Boot.js`: inicializacao e settings
-- `src/game/scenes/Preloader.js`: preload de imagens e audio
+- `src/game/scenes/Preloader.js`: preload de imagens, audio, tilesets e mapa Tiled
 - `src/game/scenes/MainMenu.js`: menu principal e escolha de idioma
-- `src/game/scenes/Game.js`: gameplay principal, HUD, waves, inimigos e upgrades
+- `src/game/scenes/Game.js`: cena principal do gameplay
 - `src/game/scenes/GameOver.js`: ecra final de derrota / vitoria
-- `src/game/data/`: personagens, animacoes, mapa, upgrades, inimigos e settings
+- `src/game/systems/MapSystem.js`: carregamento do mapa, layers, colisao e grelha de debug
+- `src/game/systems/HudSystem.js`: HUD, painel de build/evolucao e textos de estado
+- `src/game/data/gameConstants.js`: constantes principais do jogo
+- `src/game/data/`: dados de personagens, animacoes, upgrades, inimigos e settings
 - `src/game/i18n/`: traducoes PT/EN
 
-## 9. Repositorio e versao entregue
-- URL do repositorio: `https://github.com/JotaBarbosaDev/2DGame-EnemyWaves`
-- Commit hash entregue: commit apontado pela tag `1.0` (obter com `git rev-list -n 1 1.0`)
-- Tag: `1.0`
+## 10. Organizacao do codigo
+O codigo foi separado para evitar que a cena principal tivesse tudo misturado.
 
-## 10. Screenshot
+- `Game.js` controla o fluxo principal da run e a logica de gameplay.
+- `MapSystem.js` trata do mapa, layers do Tiled, bounds e colisoes.
+- `HudSystem.js` trata da interface, painel de upgrades e textos do jogo.
+- `gameConstants.js` concentra valores fixos como tamanhos, escalas, vida, waves e valores de combate.
+
+Esta separacao facilita a manutencao e torna mais simples explicar o projeto.
+
+## 11. Linhas de codigo
+Contagem aproximada atual, sem `node_modules`, `dist`, `.git`, assets binarios e imagens:
+
+- Codigo real do jogo/site: cerca de `4.357` linhas
+- Codigo dentro de `src/`: cerca de `4.225` linhas
+- Incluindo JSONs, mapas Tiled e Markdown: cerca de `58.465` linhas
+
+Para apresentacao, o numero mais justo e:
+
+> Aproximadamente 4.300 linhas de codigo, sem contar assets nem mapas gerados pelo Tiled.
+
+## 12. Repositorio
+- URL do repositorio: `https://github.com/JotaBarbosaDev/2DGame-EnemyWaves`
+- Branch principal: `main`
+
+## 13. Screenshot
 ![Screenshot do jogo](screenshot.png)
 
-## 11. Lacunas conhecidas / roadmap
-- Falta preencher os dados finais do grupo no README e no ficheiro de entrega.
+## 14. Lacunas conhecidas / roadmap
 - O audio foi mantido minimalista para cumprir o requisito com baixo impacto no tamanho final.
+- Uma melhoria futura seria separar tambem a logica de player, inimigos, waves e upgrades em sistemas proprios.
