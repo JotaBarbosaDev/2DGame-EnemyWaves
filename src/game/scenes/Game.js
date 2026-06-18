@@ -37,17 +37,18 @@ import {
 } from '../i18n';
 import { WALK_GRID } from '../data/walkGrid';
 
-const TILE_WIDTH = 256;
-const TILE_ROW_STEP = 112;
-const PIECE_COLUMNS = 10;
-const PIECE_ROWS = 8;
-const GRID_ORIGIN_X = 100;
-const GRID_ORIGIN_Y = 140;
-const FLOOR_VISIBLE_TOP_OFFSET = 334;
-const MAP_BACKGROUND_COLOR = 0xd0ab83;
+const MAP_RENDER_SCALE = 2;
+const TILE_WIDTH = 32 * MAP_RENDER_SCALE;
+const TILE_ROW_STEP = 32 * MAP_RENDER_SCALE;
+const PIECE_COLUMNS = 30;
+const PIECE_ROWS = 20;
+const GRID_ORIGIN_X = 0;
+const GRID_ORIGIN_Y = 0;
+const FLOOR_VISIBLE_TOP_OFFSET = 0;
+const MAP_BACKGROUND_COLOR = 0x1b1f24;
 const COLUMN_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const WALK_SUBCOLUMNS_PER_CELL = 4;
-const WALK_SUBROWS_PER_CELL = 2;
+const WALK_SUBCOLUMNS_PER_CELL = 1;
+const WALK_SUBROWS_PER_CELL = 1;
 
 const WALK_COLUMNS = PIECE_COLUMNS * WALK_SUBCOLUMNS_PER_CELL;
 const WALK_ROWS = PIECE_ROWS * WALK_SUBROWS_PER_CELL;
@@ -108,6 +109,7 @@ const ESSENCE_DROP_MAGNET_SPEED = 420;
 const ESSENCE_DROP_PICKUP_DISTANCE = 22;
 
 const PLAYER_ACTION_STATES = new Set(['attack', 'cast', 'hurt', 'taunt', 'dead']);
+const COLLISION_LAYER_NAMES = new Set(['walls', 'props', 'collision', 'collisions']);
 const PLAY_AREA = {
     x: WALK_ORIGIN_X,
     y: WALK_ORIGIN_Y,
@@ -276,39 +278,67 @@ export class Game extends Scene
 
     createMap ()
     {
-        for (const tile of MAP_TILES)
+        this.map = this.make.tilemap({ key: 'test-map' });
+
+        const tilesets = [
+            this.map.addTilesetImage('Grass', 'Grass'),
+            this.map.addTilesetImage('wall', 'wall'),
+            this.map.addTilesetImage('props', 'props')
+        ].filter(Boolean);
+
+        const layerDepths = {
+            'Tile Layer 1': 0,
+            walls: 10,
+            props: 20
+        };
+
+        for (const layerData of this.map.layers)
         {
-            for (const cell of this.expandCellRefs(tile.cells))
+            const layer = this.map.createLayer(layerData.name, tilesets, GRID_ORIGIN_X, GRID_ORIGIN_Y);
+
+            if (!layer)
             {
-                this.placeCellImage(
-                    tile.key,
-                    cell,
-                    tile.depth,
-                    tile.depthOffset ?? 0,
-                    tile.offsetX ?? 0,
-                    tile.offsetY ?? 0
-                );
+                continue;
+            }
+
+            layer.setScale(MAP_RENDER_SCALE);
+            layer.setDepth(layerDepths[layerData.name] ?? 0);
+        }
+
+        this.tiledWalkGrid = this.buildWalkGridFromTilemap();
+    }
+
+    buildWalkGridFromTilemap ()
+    {
+        if (!this.map)
+        {
+            return WALK_GRID;
+        }
+
+        const rows = Array.from({ length: PIECE_ROWS }, () => Array.from({ length: PIECE_COLUMNS }, () => '1'));
+
+        for (const layerData of this.map.layers)
+        {
+            if (!COLLISION_LAYER_NAMES.has(layerData.name.toLowerCase()))
+            {
+                continue;
+            }
+
+            for (let row = 0; row < Math.min(layerData.height, PIECE_ROWS); row++)
+            {
+                for (let column = 0; column < Math.min(layerData.width, PIECE_COLUMNS); column++)
+                {
+                    const tile = layerData.data[row][column];
+
+                    if (tile?.index >= 0)
+                    {
+                        rows[row][column] = '0';
+                    }
+                }
             }
         }
 
-        for (const prop of MAP_PROPS)
-        {
-            const cell = this.cellToCoords(prop.cell);
-            const x = this.gridX(cell.column) + (prop.offsetX ?? 0);
-            const y = this.gridY(cell.row) + (prop.offsetY ?? 0);
-
-            this.placeProp(
-                prop.key,
-                x,
-                y,
-                this.resolveDepth(prop.depth, cell.row, prop.depthOffset ?? 0)
-            );
-        }
-
-        for (const decoration of MAP_DECORATIONS)
-        {
-            this.drawDecoration(decoration);
-        }
+        return rows.map((row) => row.join(''));
     }
 
     buildBlockedZonesFromMatrix ()
@@ -2203,6 +2233,7 @@ export class Game extends Scene
     findEnemySpawnPoint ()
     {
         const cameraView = this.cameras.main.worldView;
+        const fallbackPoints = [];
 
         for (let attempts = 0; attempts < 90; attempts++)
         {
@@ -2216,12 +2247,6 @@ export class Game extends Scene
 
             const x = this.walkCellLeft(column) + (WALK_CELL_WIDTH / 2);
             const y = this.walkCellTop(row) + (WALK_CELL_HEIGHT / 2);
-
-            if (this.isInsideExpandedCameraView(cameraView, x, y, ENEMY_SPAWN_VIEW_MARGIN))
-            {
-                continue;
-            }
-
             const playerFeet = this.getPlayerFeetPosition();
 
             if (Math.hypot(playerFeet.x - x, playerFeet.y - y) < ENEMY_MIN_PLAYER_DISTANCE)
@@ -2229,10 +2254,19 @@ export class Game extends Scene
                 continue;
             }
 
+            fallbackPoints.push({ x, y });
+
+            if (this.isInsideExpandedCameraView(cameraView, x, y, ENEMY_SPAWN_VIEW_MARGIN))
+            {
+                continue;
+            }
+
             return { x, y };
         }
 
-        return null;
+        return fallbackPoints.length > 0
+            ? fallbackPoints[PhaserMath.Between(0, fallbackPoints.length - 1)]
+            : null;
     }
 
     isInsideExpandedCameraView (view, x, y, margin)
@@ -3068,7 +3102,9 @@ export class Game extends Scene
 
     isWalkable (column, row)
     {
-        return WALK_GRID[row][column] === '1';
+        const grid = this.tiledWalkGrid ?? WALK_GRID;
+
+        return grid[row]?.[column] === '1';
     }
 
     pieceCellId (column, row)
