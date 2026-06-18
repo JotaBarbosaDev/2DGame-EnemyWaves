@@ -4,19 +4,19 @@
   <export target="../public/assets/maps/map2.json" format="json" />
  </editorsettings>
  <tileset firstgid="1" name="Grass" tilewidth="32" tileheight="32" tilecount="64" columns="8">
-  <image source="assets/TX Tileset Grass.png" width="256" height="256" />
+  <image source="../public/assets/map/TX Tileset Grass.png" width="256" height="256" />
  </tileset>
  <tileset firstgid="193" name="wall" tilewidth="32" tileheight="32" tilecount="256" columns="16">
-  <image source="assets/TX Tileset Wall.png" width="512" height="512" />
+  <image source="../public/assets/map/TX Tileset Wall.png" width="512" height="512" />
  </tileset>
  <tileset firstgid="449" name="Props" tilewidth="32" tileheight="32" tilecount="256" columns="16">
-  <image source="assets/TX Props with Shadow.png" width="512" height="512" />
+  <image source="../public/assets/map/TX Props with Shadow.png" width="512" height="512" />
  </tileset>
  <tileset firstgid="705" name="Plant" tilewidth="32" tileheight="32" tilecount="256" columns="16">
-  <image source="assets/TX Plant with Shadow.png" width="512" height="512" />
+  <image source="../public/assets/map/TX Plant with Shadow.png" width="512" height="512" />
  </tileset>
  <tileset firstgid="961" name="props" tilewidth="32" tileheight="32" tilecount="256" columns="16">
-  <image source="assets/TX Props.png" width="512" height="512" />
+  <image source="../public/assets/map/TX Props.png" width="512" height="512" />
  </tileset>
  <layer id="1" name="Ground" width="70" height="46">
   <data encoding="csv">
