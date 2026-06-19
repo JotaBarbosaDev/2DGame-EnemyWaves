@@ -40,6 +40,7 @@ import {
     GRID_ORIGIN_X,
     GRID_ORIGIN_Y,
     MAP_BACKGROUND_COLOR,
+    BACKGROUND_MUSIC_VOLUME,
     COLUMN_LABELS,
     WALK_COLUMNS,
     WALK_ROWS,
@@ -144,6 +145,7 @@ export class Game extends Scene
         this.createProgressionSystems();
         this.enableZoneCollisions();
         this.createHud();
+        this.startBackgroundMusic();
 
         this.cameras.main.setBounds(CAMERA_BOUNDS.x, CAMERA_BOUNDS.y, CAMERA_BOUNDS.width, CAMERA_BOUNDS.height);
         this.cameras.main.startFollow(this.playerHitbox, true, 0.12, 0.12);
@@ -196,6 +198,42 @@ export class Game extends Scene
         {
             // Ignore transient browser audio lock failures.
         }
+    }
+
+    startBackgroundMusic ()
+    {
+        if (!this.sound || !this.cache.audio.exists('bg-music'))
+        {
+            return;
+        }
+
+        const existingMusic = this.sound.get('bg-music');
+
+        if (existingMusic?.isPlaying)
+        {
+            existingMusic.setVolume(BACKGROUND_MUSIC_VOLUME);
+            return;
+        }
+
+        const playMusic = () => {
+            if (this.sound.get('bg-music')?.isPlaying)
+            {
+                return;
+            }
+
+            this.sound.play('bg-music', {
+                loop: true,
+                volume: BACKGROUND_MUSIC_VOLUME
+            });
+        };
+
+        if (this.sound.locked)
+        {
+            this.sound.once('unlocked', playMusic);
+            return;
+        }
+
+        playMusic();
     }
 
     restartRun ()

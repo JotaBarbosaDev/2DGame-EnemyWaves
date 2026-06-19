@@ -6,6 +6,7 @@ export const PIECE_ROWS = 46;
 export const GRID_ORIGIN_X = 0;
 export const GRID_ORIGIN_Y = 0;
 export const MAP_BACKGROUND_COLOR = 0x1b1f24;
+export const BACKGROUND_MUSIC_VOLUME = 0.12;
 export const COLUMN_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 export const WALK_COLUMNS = PIECE_COLUMNS;
 export const WALK_ROWS = PIECE_ROWS;

@@ -106,7 +106,8 @@ Essa layer pode estar invisivel no Tiled, mas continua a ser lida pelo jogo para
 ### Formatos usados em runtime
 - Mapas Tiled: `JSON`
 - Tilesets e sprites: `PNG`
-- Audio: `WAV`
+- Efeitos sonoros: `WAV`
+- Musica de fundo: `OGG Vorbis`
 
 ### Audio
 Os efeitos sonoros estao em `public/assets/audio/`.
@@ -115,6 +116,9 @@ Ficheiros usados:
 - `attack.wav` - ataque melee
 - `pickup.wav` - recolha de essencia
 - `gameover.wav` - morte / fim da run
+- `music.ogg` - musica de fundo em loop, reproduzida com volume baixo (`0.12`)
+
+O ficheiro `music.ogg` esta em formato OGG Vorbis, stereo, 44.1 kHz e cerca de 152 kbps. E um formato adequado para musica de fundo em jogos web porque tem boa compressao e e suportado pelos browsers modernos usados pelo Phaser.
 
 ## 9. Estrutura do projeto
 ```text
