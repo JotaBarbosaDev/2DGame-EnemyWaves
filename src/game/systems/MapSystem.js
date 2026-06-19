@@ -32,7 +32,7 @@ createMap ()
     const layerDepths = {
         Ground: 0,
         Ground_plants: 1,
-        plant_bottom: 5,
+        plant_bottom: 11,
         walls: 10,
         Objects: 15,
         'walls vert': 18,

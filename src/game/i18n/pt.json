@@ -1,128 +1,128 @@
 {
   "meta": {
-    "title": "2D Enemy Waves"
+    "title": "Ondas de Inimigos 2D"
   },
   "menu": {
-    "title": "2D Enemy Waves",
+    "title": "Ondas de Inimigos 2D",
     "subtitle": "Sobrevive, luta e limpa o mapa",
-    "controls": "WASD mover | Space/J/K/LMB atacar | E/RMB cast | U build | 1-6 gastar | R reiniciar",
-    "start": "Comecar",
-    "settings": "Definicoes",
+    "controls": "WASD mover | Espaço/J/K/LMB atacar | E/RMB conjurar | U melhorias | 1-6 gastar | R reiniciar",
+    "start": "Começar",
+    "settings": "Definições",
     "language": "Idioma",
-    "devMode": "Modo Dev {state}",
-    "devModeHintOn": "Mostra grelha, celulas e marcadores de debug",
+    "devMode": "Modo DEV {state}",
+    "devModeHintOn": "Mostra grelha, células e marcadores de depuração",
     "devModeHintOff": "Esconde grelha e coordenadas do mapa",
-    "on": "ON",
-    "off": "OFF"
+    "on": "Ligado",
+    "off": "Desligado"
   },
   "gameover": {
-    "titleLose": "Game Over",
-    "titleWin": "Vitoria",
-    "subtitleLose": "Foste derrotado. Escolhe o proximo passo.",
-    "subtitleWin": "Sobreviveste a todas as waves. Run concluida.",
-    "waveScore": "Wave alcancada: {wave} | Score: {score}",
+    "titleLose": "Fim de Jogo",
+    "titleWin": "Vitória",
+    "subtitleLose": "Foste derrotado. Escolhe o próximo passo.",
+    "subtitleWin": "Sobreviveste a todas as ondas. Partida concluída.",
+    "waveScore": "Onda alcançada: {wave} | Pontuação: {score}",
     "finalForm": "Forma final: {character}",
-    "buildSpent": "Build gasta: {spent}/{total}",
+    "buildSpent": "Melhorias gastas: {spent}/{total}",
     "restart": "Reiniciar",
     "home": "Menu"
   },
   "hud": {
-    "playerStatus": "Estado: {state}   HP: {health}/{maxHealth}",
-    "cooldowns": "Ataque: {attack}   Cast: {cast}   Regen: {regen}",
-    "wave": "Wave {wave} | {state}",
-    "scoreEssence": "Score: {score} | Essencia: {essence}",
+    "playerStatus": "Estado: {state}   Vida: {health}/{maxHealth}",
+    "cooldowns": "Ataque: {attack}   Conj.: {cast}   Reg.: {regen}",
+    "wave": "Onda {wave} | {state}",
+    "scoreEssence": "Pontuação: {score} | Essência: {essence}",
     "enemies": "Vivos: {enemies} | Por surgir: {remaining}",
-    "progression": "Build: {spent}/{total} | Evolucao: {evolution}",
+    "progression": "Melhorias: {spent}/{total} | Evolução: {evolution}",
     "health": "Vida {health}/{maxHealth}",
-    "controls": "WASD mover | Space/J/K/LMB atacar | E/RMB cast | U build | 1-6 gastar | R reiniciar",
+    "controls": "WASD mover | Espaço/J/K/LMB atacar | E/RMB conjurar | U melhorias | 1-6 gastar | R reiniciar",
     "outsideGrid": "Fora da matriz",
-    "cellStatus": "Celula: {piece} | Sub: {walk} | Matriz: {walkable} | Camada: {layer}",
+    "cellStatus": "Célula: {piece} | Sub: {walk} | Matriz: {walkable} | Camada: {layer}",
     "waveStateActive": "ativa",
-    "waveStatePrepare": "prepara",
+    "waveStatePrepare": "preparação",
     "final": "final",
-    "regenOff": "off",
+    "regenOff": "deslig.",
     "walkableTrue": "1",
     "walkableFalse": "0",
-    "layerBehind": "tras",
+    "layerBehind": "trás",
     "layerFront": "frente",
     "ready": "pronto"
   },
   "build": {
-    "title": "{character} Build",
-    "summary": "Pontos gastos: {spent}/{total} | Proxima forma: {next}",
+    "title": "Melhorias de {character}",
+    "summary": "Pontos gastos: {spent}/{total} | Próxima forma: {next}",
     "points": "{points} pts",
-    "currentForm": "Forma Atual",
+    "currentForm": "Forma atual",
     "finalForm": "Forma final",
     "traitsTitle": "Passivas atuais",
     "hint": "U fechar | 1-6 investir | N evoluir",
     "ready": "Pronto: {character}",
-    "next": "Proxima: {character}",
+    "next": "Próxima: {character}",
     "evolveReady": "N para evoluir para {character}",
-    "finalInProgress": "Build final em curso: fecha os 30 pontos para maximizar a run",
+    "finalInProgress": "Melhorias finais em curso: completa os 30 pontos para maximizar a partida",
     "pointsMissing": "Faltam {points} pontos gastos para evoluir"
   },
   "banner": {
-    "buildComplete": "Build completa",
+    "buildComplete": "Melhorias completas",
     "readyToEvolve": "{character} pronto | N para evoluir",
     "ascends": "{character} ascende",
-    "wave": "Wave {wave}",
-    "waveCleared": "Wave {wave} limpa",
-    "victory": "Vitoria"
+    "wave": "Onda {wave}",
+    "waveCleared": "Onda {wave} concluída",
+    "victory": "Vitória"
   },
   "pickup": {
-    "essence": "+{value} essencia"
+    "essence": "+{value} essência"
   },
   "states": {
     "idle": "pronto",
     "idleBlink": "alerta",
-    "walk": "mover",
-    "attack": "ataque",
-    "cast": "cast",
+    "walk": "a mover-se",
+    "attack": "a atacar",
+    "cast": "a conjurar",
     "hurt": "ferido",
-    "taunt": "provocar",
+    "taunt": "a provocar",
     "dead": "morto"
   },
   "characters": {
     "wraith1": {
-      "name": "Wraith I",
-      "trait1": "Soul Scavenger: mais chance de cair essencia e maior raio de recolha.",
-      "trait2": "Light Veil: mais velocidade base e +1 vida base."
+      "name": "Espectro I",
+      "trait1": "Necrófago de Almas: mais chance de cair essência e maior raio de recolha.",
+      "trait2": "Véu de Luz: mais velocidade base e +1 de vida base."
     },
     "wraith2": {
-      "name": "Wraith II",
-      "trait1": "Rending Claws: melee bate mais forte e com mais alcance.",
-      "trait2": "Battle Tempo: a cadencia rende mais e o ataque sai mais rapido."
+      "name": "Espectro II",
+      "trait1": "Garras Dilacerantes: o corpo a corpo bate mais forte e com mais alcance.",
+      "trait2": "Ritmo de Batalha: a cadência rende mais e o ataque sai mais rápido."
     },
     "wraith3": {
-      "name": "Wraith III",
-      "trait1": "Void Channel: cast mais forte, mais rapido e com projeteis maiores.",
-      "trait2": "Soul Dominion: a essencia rende mais e o score escala melhor."
+      "name": "Espectro III",
+      "trait1": "Canal do Vazio: conjuração mais forte, mais rápida e com projéteis maiores.",
+      "trait2": "Domínio da Alma: a essência rende mais e a pontuação escala melhor."
     }
   },
   "upgrades": {
     "mobility": {
       "label": "Mobilidade",
-      "description": "+ velocidade de movimento e recolha de essencia"
+      "description": "+ velocidade de movimento e recolha de essência"
     },
     "assault": {
       "label": "Ferocidade",
-      "description": "+ dano melee e alcance do golpe"
+      "description": "+ dano corpo a corpo e alcance do golpe"
     },
     "haste": {
-      "label": "Cadencia",
-      "description": "+ velocidade de ataque e de cast"
+      "label": "Cadência",
+      "description": "+ velocidade de ataque e de conjuração"
     },
     "arcana": {
       "label": "Arcana",
-      "description": "+ dano do cast, raio e velocidade do projetil"
+      "description": "+ dano de conjuração, raio e velocidade do projétil"
     },
     "fortitude": {
       "label": "Fortitude",
-      "description": "+ vida maxima"
+      "description": "+ vida máxima"
     },
     "regeneration": {
-      "label": "Regeneracao",
-      "description": "+ regeneracao e reduz atraso apos dano"
+      "label": "Regeneração",
+      "description": "+ regeneração e reduz o atraso após dano"
     }
   }
 }

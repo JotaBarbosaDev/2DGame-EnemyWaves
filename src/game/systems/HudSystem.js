@@ -14,12 +14,12 @@ createHud ()
 {
     const leftPanelX = 18;
     const topPanelY = 18;
-    const leftPanelWidth = 344;
+    const leftPanelWidth = 480;
     const leftPanelHeight = 126;
-    const rightPanelWidth = 280;
+    const rightPanelWidth = 380;
     const rightPanelHeight = 154;
     const rightPanelX = this.scale.width - rightPanelWidth - 18;
-    const bottomHintWidth = 620;
+    const bottomHintWidth = 850;
     const bottomHintHeight = 38;
     const bottomHintX = (this.scale.width - bottomHintWidth) / 2;
     const bottomHintY = this.scale.height - bottomHintHeight - 18;
@@ -199,8 +199,8 @@ createEvolutionPanel ()
     const panelLeft = (this.scale.width / 2) - (panelWidth / 2);
     const panelTop = (this.scale.height / 2) - (panelHeight / 2);
     const barLabelX = panelLeft + 44;
-    const barStartX = panelLeft + 170;
-    const segmentWidth = 26;
+    const barStartX = panelLeft + 250;
+    const segmentWidth = 20;
     const segmentGap = 4;
     const segmentCount = 10;
     const barWidth = (segmentWidth * segmentCount) + (segmentGap * (segmentCount - 1));
