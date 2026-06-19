@@ -344,8 +344,13 @@ export class Game extends Scene
 
         });
 
-        const footX = this.pieceCellCenterX(PLAYER_SPAWN.column);
-        const footY = this.pieceCellCenterY(PLAYER_SPAWN.row) + PLAYER_FOOT_Y_OFFSET;
+        const fallbackSpawn = {
+            x: this.pieceCellCenterX(PLAYER_SPAWN.column),
+            y: this.pieceCellCenterY(PLAYER_SPAWN.row) + PLAYER_FOOT_Y_OFFSET
+        };
+        const playerSpawn = this.playerSpawnPoint ?? fallbackSpawn;
+        const footX = playerSpawn.x;
+        const footY = playerSpawn.y;
 
         this.playerHitbox = this.add.zone(
             footX,
@@ -1304,6 +1309,13 @@ getWaveEnemyTotal (waveNumber)
 
     findEnemySpawnPoint ()
     {
+        const tiledSpawnPoint = this.pickTiledEnemySpawnPoint();
+
+        if (tiledSpawnPoint)
+        {
+            return tiledSpawnPoint;
+        }
+
         const cameraView = this.cameras.main.worldView;
         const fallbackPoints = [];
 
@@ -1339,6 +1351,27 @@ getWaveEnemyTotal (waveNumber)
         return fallbackPoints.length > 0
             ? fallbackPoints[PhaserMath.Between(0, fallbackPoints.length - 1)]
             : null;
+    }
+
+    pickTiledEnemySpawnPoint ()
+    {
+        if (!this.enemySpawnPoints?.length)
+        {
+            return null;
+        }
+
+        const playerFeet = this.getPlayerFeetPosition();
+        const validSpawnPoints = this.enemySpawnPoints.filter((spawnPoint) => {
+            const walkCell = this.getWalkCellAtWorldPosition(spawnPoint.x, spawnPoint.y);
+
+            return (
+                walkCell?.walkable !== false &&
+                Math.hypot(playerFeet.x - spawnPoint.x, playerFeet.y - spawnPoint.y) >= ENEMY_MIN_PLAYER_DISTANCE
+            );
+        });
+        const spawnPoints = validSpawnPoints.length > 0 ? validSpawnPoints : this.enemySpawnPoints;
+
+        return spawnPoints[PhaserMath.Between(0, spawnPoints.length - 1)];
     }
 
     isInsideExpandedCameraView (view, x, y, margin)

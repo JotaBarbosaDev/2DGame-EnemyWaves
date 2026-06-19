@@ -48,7 +48,7 @@ export class Preloader extends Scene
         this.load.audio('sfx-gameover', 'audio/gameover.wav');
         this.load.audio('bg-music', 'audio/music.ogg');
 
-        this.load.tilemapTiledJSON('test-map', 'maps/map3.json');
+        this.load.tilemapTiledJSON('test-map', 'maps/map.json');
         this.load.image('Grass', 'map/TX Tileset Grass.png');
         this.load.image('wall', 'map/TX Tileset Wall.png');
         this.load.image('Props', 'map/TX Props with Shadow.png');

@@ -2,7 +2,7 @@ import {
     PLAYER_TOTAL_UPGRADE_POINTS,
     PLAYER_UPGRADES
 } from '../data/playerUpgrades';
-import { getPlayerFrameKey } from '../data/playerAnimations';
+import { getPlayerAnimationKey, getPlayerFrameKey } from '../data/playerAnimations';
 import { getNextPlayerCharacter } from '../data/playerCharacters';
 import {
     PLAYER_HEALTH_BAR_HEIGHT,

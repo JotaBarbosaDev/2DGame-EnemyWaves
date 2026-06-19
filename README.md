@@ -80,7 +80,7 @@ O output final fica na pasta `dist/`.
 ## 7. Mapa e Tiled
 O mapa principal foi criado no Tiled e esta guardado em:
 
-- `public/assets/maps/map3.json`
+- `public/assets/maps/map.json`
 
 O Phaser carrega este mapa no `Preloader` com a chave `test-map`.
 
@@ -99,7 +99,7 @@ Essa layer pode estar invisivel no Tiled, mas continua a ser lida pelo jogo para
 
 ## 8. Aspetos multimedia
 ### Imagens
-- **Mapa**: tiles pixel art top-down carregados a partir de `public/assets/map/` e mapa exportado do Tiled em `public/assets/maps/map3.json`.
+- **Mapa**: tiles pixel art top-down carregados a partir de `public/assets/map/` e mapa exportado do Tiled em `public/assets/maps/map.json`.
 - **Inimigos**: sprites de zombies provenientes de packs com licenca Craftpix, conforme `public/assets/enemy/License.txt`.
 - **Jogador**: sprites `Wraith` provenientes de pack com licenca Craftpix, conforme `public/assets/player1/TXT/license.txt`.
 
@@ -116,7 +116,7 @@ Ficheiros usados:
 - `attack.wav` - ataque melee
 - `pickup.wav` - recolha de essencia
 - `gameover.wav` - morte / fim da run
-- `music.ogg` - musica de fundo em loop, reproduzida com volume baixo (`0.12`)
+- `music.ogg` - musica de fundo em loop, reproduzida com volume baixo (`0.07`)
 
 O ficheiro `music.ogg` esta em formato OGG Vorbis, stereo, 44.1 kHz e cerca de 152 kbps. E um formato adequado para musica de fundo em jogos web porque tem boa compressao e e suportado pelos browsers modernos usados pelo Phaser.
 

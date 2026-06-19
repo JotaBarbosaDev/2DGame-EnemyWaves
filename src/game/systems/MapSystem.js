@@ -1,5 +1,6 @@
 import {
     COLLISION_LAYER_NAMES,
+    COLUMN_LABELS,
     GRID_ORIGIN_X,
     GRID_ORIGIN_Y,
     MAP_RENDER_SCALE,
@@ -57,6 +58,52 @@ createMap ()
     }
 
     this.tiledWalkGrid = this.buildWalkGridFromTilemap();
+    this.buildSpawnPointsFromTilemap();
+},
+
+buildSpawnPointsFromTilemap ()
+{
+    this.playerSpawnPoint = null;
+    this.enemySpawnPoints = [];
+
+    const spawnLayer = this.map.objects.find((layer) => layer.name === 'spawns' || layer.name === 'spawn');
+
+    if (!spawnLayer)
+    {
+        return;
+    }
+
+    for (const object of spawnLayer.objects)
+    {
+        if (this.getTiledObjectProperty(object, 'enabled') === false)
+        {
+            continue;
+        }
+
+        const spawnPoint = {
+            direction: this.getTiledObjectProperty(object, 'direction') ?? 'any',
+            name: object.name,
+            role: this.getTiledObjectProperty(object, 'role') ?? object.type,
+            x: object.x * MAP_RENDER_SCALE,
+            y: object.y * MAP_RENDER_SCALE
+        };
+
+        if (object.type === 'player_spawn' || spawnPoint.role === 'player')
+        {
+            this.playerSpawnPoint = spawnPoint;
+            continue;
+        }
+
+        if (object.type === 'enemy_spawn' || spawnPoint.role === 'enemy')
+        {
+            this.enemySpawnPoints.push(spawnPoint);
+        }
+    }
+},
+
+getTiledObjectProperty (object, name)
+{
+    return object.properties?.find((property) => property.name === name)?.value;
 },
 
 buildWalkGridFromTilemap ()
